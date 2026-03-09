@@ -2,7 +2,7 @@
 
 **作者:** 張智奇 (Saw S. Lin)，由 Gemini 和 Claude 輔助。
 
-**適用範圍:** 僅涵蓋學門召集人 (DC) 客戶端。管理端 (Admin) 和申請人端 (Applicant) 端點不在範圍內。
+**適用範圍:** 僅涵蓋學門召集人 (Discipline Convener – 簡稱“DC”) 客戶端。後台管理端 (Admin) 和申請人端 端點不在範圍內。
 
 **Base URL:** `/api/v1`
 
@@ -18,7 +18,7 @@
 ## 1. 設計原則
 
 - 除了 `POST /sessions` 和 `POST /sessions/refresh` 外，每個端點都需要 `Authorization: Bearer <sessionToken>` 標頭。
-- 只有在所有申請人提交關閉後，系統才可使用。在此窗口開啟前，針對學門召集人事務的寫入操作將被拒絕。
+- 只有在所有申請作業關閉後，本系統才可使用。在此窗口開啟前，針對學門召集人事務的“寫入”操作將被拒絕。
 - 首頁/歡迎頁資料在單一請求中載入 (`GET /users/me/grant-cycle`) 以減少來回次數。每個申請案的初審委員詳細資訊 (分數、評論) 在需要時獲取。
 - 每個對 `/applications/{id}/reviewer-recommendations` 的 `POST` 請求都會 **附加** 一個新的推薦紀錄。它不會替換先前的紀錄。
 - 後端計算並擁有每個申請案的 `status` (狀態)。DC 使用者無法直接設定它。
@@ -65,7 +65,7 @@
 
 ### 2.3 ErrorType 參考
 
-| ErrorType               | 使用時機                                                  |
+| ErrorType               | 使用時機/易讀摘要                                         |
 | ----------------------- | --------------------------------------------------------- |
 | `VALIDATION_ERROR`      | 請求主體或查詢參數未通過驗證                              |
 | `AUTHENTICATION_ERROR`  | 憑證遺失、過期或無效                                      |
@@ -100,7 +100,7 @@
 
 ## 4. 身分驗證
 
-### 4.1 CAPTCHA
+### 4.1. CAPTCHA
 
 **由誰處理 CAPTCHA:** 這是一項分攤的責任。
 
@@ -245,7 +245,7 @@ Content-Type: application/json
 
 後端計算並擁有每個申請案的 `status` (狀態)。DC 無法直接設定；它會根據審查委員、管理員的事件以及 DC 自身的操作而改變。
 
-### 5.1 狀態值
+### 5.1. 狀態值
 
 | 值                       | 顯示文字 (ZhTW) | 意義                                                                                                                  |
 | ------------------------ | --------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -255,7 +255,7 @@ Content-Type: application/json
 | `DRAFT_FINAL_REVIEW`     | 待送出          | DC 已儲存決審草稿 (`isFinalized = false`)。初審可能完成也可能未完全完成；直到完成前將被阻擋送出。                     |
 | `COMPLETED`              | 已完成          | DC 已提交並完成決審 (`isFinalized = true`)。                                                                          |
 
-### 5.2 狀態轉換條件
+### 5.2. 狀態轉換條件
 
 ```
 PENDING_RECOMMENDATION
@@ -287,7 +287,7 @@ DRAFT_FINAL_REVIEW
               如果不符合此條件，後端必須以 409 CONFLICT 拒絕。
 ```
 
-### 5.3 業務規則
+### 5.3. 業務規則
 
 1. DC **可以儲存草稿** (`isFinalized = false`) 在任何時候，即使在所有初審完之前。
 2. DC **無法決定送出 (finalize)** (`isFinalized = true`) 除非至少 `minNumInitialReviewers` 名初審委員已完成。後端必須使用 `409 CONFLICT` 強制執行。
@@ -298,7 +298,7 @@ DRAFT_FINAL_REVIEW
 
 ## 6. 端點
 
-### 6.1 `GET /users/me/grant-cycle` — 首頁和歡迎頁面資料
+### 6.1. `GET /users/me/grant-cycle` — 首頁和歡迎頁面資料
 
 回傳渲染歡迎和主頁以及啟用所有 DC 使用者互動所需要的所有資料。單一回應中包含這兩個組別以及所有被分配的學門。每個申請案的初審委員詳細資訊 (分數、評論) 透過 §6.2 分開獲取。
 
@@ -534,7 +534,7 @@ DRAFT_FINAL_REVIEW
 
 ---
 
-### 6.2 `GET /applications/{applicationId}/initial-reviewers` — 初審委員詳情
+### 6.2. `GET /applications/{applicationId}/initial-reviewers` — 初審委員詳情
 
 傳回特定申請案且經過確認的初審委員和他們評論的細節。當 DC 開啟申請摘要會呼叫此 API。
 
@@ -590,7 +590,7 @@ DRAFT_FINAL_REVIEW
 
 ---
 
-### 6.3 `POST /applications/{applicationId}/reviewer-recommendations` — 提交推薦委員
+### 6.3. `POST /applications/{applicationId}/reviewer-recommendations` — 提交推薦委員
 
 在此申請案下創建新的推薦紀錄，每個呼叫都會往推薦的歷史附加新的紀錄。後端在伺服器端自動存下 `createdDateTime`，不會採用從客戶端帶來的資訊。
 
@@ -649,7 +649,7 @@ DRAFT_FINAL_REVIEW
 
 ---
 
-### 6.4 `PUT /applications/{applicationId}/final-review` — 儲存或送出決審
+### 6.4. `PUT /applications/{applicationId}/final-review` — 儲存或送出決審
 
 儲存 DC 決審的草稿或進行最終提交。重複呼叫且帶有相同的資料會產生相同的結果 (冪等性)。
 

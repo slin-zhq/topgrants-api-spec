@@ -1,10 +1,17 @@
 # TOP Grants — Discipline Convener Platform API Specification
 
+**Authors:** Saw S. Lin (Zhang Zhiqi), with assistance of Gemini, and Claude.
+
 **Scope:** Covers the Discipline Convener (DC / 學門召集人) client only. Admin-side and applicant-side endpoints are out of scope.
 
 **Base URL:** `/api/v1`
 
 **Versioning:** URL-path versioning (`/v1`, `/v2`, …). Breaking changes increment the major version. All current development targets `v1`.
+
+**Assumptions:**
+
+- There will be an API Gateway that integrates `phdCandidate` and `youngScholar` backends, and can identify which track an application belongs to via `applicationId`.
+- Should the above premise cannot hold, we would need to adopt the following pattern: `/api/v1/phdCandidate/applications/...` and `/api/v1/youngScholar/applications/...`.
 
 ---
 
@@ -58,18 +65,18 @@ All API responses share this structure:
 
 ### 2.3 ErrorType Reference
 
-| ErrorType               | When Used                                                                                                                              |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `VALIDATION_ERROR`      | Request body or query parameter failed validation                                                                                      |
-| `AUTHENTICATION_ERROR`  | Token missing, expired, or invalid                                                                                                     |
-| `CAPTCHA_ERROR`         | CAPTCHA token missing, invalid, score too low, or expired                                                                              |
-| `AUTHORIZATION_ERROR`   | Authenticated user lacks permission for this resource                                                                                  |
-| `NOT_FOUND`             | Requested resource does not exist                                                                                                      |
-| `CONFLICT`              | Request conflicts with the current resource state (e.g., finalizing review before all initial reviews are complete) [TODO: to discuss] |
-| `QUERY_EXECUTION_ERROR` | Database query failed                                                                                                                  |
-| `TIMEOUT_ERROR`         | Backend operation timed out                                                                                                            |
-| `RATE_LIMIT_ERROR`      | Too many requests from the client                                                                                                      |
-| `INTERNAL_SERVER_ERROR` | Unexpected server-side failure                                                                                                         |
+| ErrorType               | When Used                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `VALIDATION_ERROR`      | Request body or query parameter failed validation                                                                   |
+| `AUTHENTICATION_ERROR`  | Token missing, expired, or invalid                                                                                  |
+| `CAPTCHA_ERROR`         | CAPTCHA token missing, invalid, score too low, or expired                                                           |
+| `AUTHORIZATION_ERROR`   | Authenticated user lacks permission for this resource                                                               |
+| `NOT_FOUND`             | Requested resource does not exist                                                                                   |
+| `CONFLICT`              | Request conflicts with the current resource state (e.g., finalizing review before all initial reviews are complete) |
+| `QUERY_EXECUTION_ERROR` | Database query failed                                                                                               |
+| `TIMEOUT_ERROR`         | Backend operation timed out                                                                                         |
+| `RATE_LIMIT_ERROR`      | Too many requests from the client                                                                                   |
+| `INTERNAL_SERVER_ERROR` | Unexpected server-side failure                                                                                      |
 
 <!-- | `AI_SERVICE_ERROR`      | Smart recommendation service error                                                                                  | -->
 <!-- | `EXPORT_ERROR`          | File/PDF export generation failed                                                                                   | -->
@@ -103,7 +110,7 @@ All API responses share this structure:
 - **Frontend** loads the CAPTCHA provider's script, invokes it on login form submit to obtain a one-time `captchaToken`, and sends that token alongside credentials.
 - **Backend** never generates or renders CAPTCHA challenges. It receives `captchaToken`, verifies it server-to-server (a private POST to the CAPTCHA provider's verification API), and accepts or rejects the login accordingly.
 
-**Recommended provider:** [Google reCAPTCHA v3](https://developers.google.com/recaptcha/docs/v3) (invisible, score-based — no user interaction needed) or [hCaptcha](https://www.hcaptcha.com) (privacy-first alternative with equivalent API behavior).
+**Provider (recommended by AI):** [Google reCAPTCHA v3](https://developers.google.com/recaptcha/docs/v3) (invisible, score-based — no user interaction needed) or [hCaptcha](https://www.hcaptcha.com) (privacy-first alternative with equivalent API behavior).
 
 > ⚠️ **Open Decision:** Confirm the CAPTCHA provider before implementation. Frontend and backend must use the matching site key (public, frontend) and secret key (private, backend) from the same provider.
 

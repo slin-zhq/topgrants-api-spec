@@ -323,7 +323,7 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
     "applicationTracks": {
       "phdCandidate": {
         "fixedQuota": "integer (核定名額)",
-        // "totalApplicationsCount": "integer",
+        "totalApplicationsCount": "integer", // Total no. of applications, not limited to those to be handled by current DC user.
         // "overallSelectionRatio": "number (float; = fixedQuota / totalApplicationsCount, e.g., 0.42)",
         "evaluationRubrics": [
           {
@@ -334,7 +334,8 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
         "disciplines": [
           {
             "name": "string (must be unique within this track and cycle)",
-            "minNumInitialReviewers": "integer"
+            "minNumInitialReviewers": "integer",
+            "totalApplicationsCount": "integer" // Total no. of applications, not limited to those to be handled by current DC user.
             // "expectedValue": "number (float, 2 decimal places; = discipline applicant count × overallSelectionRatio)"
           }
         ],
@@ -414,8 +415,8 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
             ],
             "initialReviewSummary": {
               // This is needed, should frontend needs to handle the status/state change
-              "numConfirmedReviewers": "integer",
-              "numReviewsCompleted": "integer"
+              "confirmedReviewersCount": "integer",
+              "reviewsCompletedCount": "integer"
             },
             "finalReview": {
               "score": "integer | null",
@@ -428,7 +429,7 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
       },
       "youngScholar": {
         "fixedQuota": "integer",
-        // "totalApplicationsCount": "integer",
+        "totalApplicationsCount": "integer", // Total no. of applications, not limited to those to be handled by current DC user.
         // "overallSelectionRatio": "number (float)",
         "evaluationRubrics": [
           {
@@ -439,7 +440,8 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
         "disciplines": [
           {
             "name": "string",
-            "minNumInitialReviewers": "integer"
+            "minNumInitialReviewers": "integer",
+            "totalApplicationsCount": "integer" // Total no. of applications, not limited to those to be handled by current DC user.
             // "expectedValue": "number (float, 2 decimal places)"
           }
         ],
@@ -516,6 +518,9 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
                 ]
               }
             ],
+            "initialReviewSummary": {
+              // Same as `phdCandidate` track
+            },
             "finalReview": {
               "score": "integer | null",
               "remarks": "string | null",
@@ -763,23 +768,23 @@ These statuses are computed by the backend based on reviewer activity.
 
 ---
 
-## 7. Reference: 期望值 (Expected Value) Calculation
+## 7. Reference: 預計入選名額 Calculation
 
-> Note: This is shared for knowledge, only. Frontend can handle the calculation, while requiring `expectedValue` from backend.
-
-The `expectedValue` for each discipline is a "soft" recommended quota — a guidance figure for the DC when deciding how many applicants to rate highly.
+The `預計入選名額` for each discipline is a "soft" recommended quota — a guidance figure for the DC when deciding how many applicants to rate highly.
 
 **Formula:**
 
 ```
 overallSelectionRatio = fixedQuota / totalApplicationsInTrack
 
-expectedValue (per discipline) = disciplineApplicantCount × overallSelectionRatio
+預計入選名額 (per discipline) = disciplineApplicantCount × overallSelectionRatio
 ```
 
-**Fairness rule:** If a discipline's `expectedValue < 1.0`, the DC may still recommend 1 highly-rated applicant for that discipline to ensure representational fairness.
+**Fairness rule:** If a discipline's `預計入選名額 < 1.0`, the DC may still recommend 1 highly-rated applicant for that discipline to ensure representational fairness.
 
-Both `overallSelectionRatio` and per-discipline `expectedValue` are computed and returned by the backend. Frontend must not recompute them.
+Both `overallSelectionRatio` and per-discipline `預計入選名額` are computed and returned by the backend. Frontend must not recompute them.
+
+> Note: Alternatively, frontend can handle the calculation, while not requiring `預計入選名額` from backend.
 
 <!-- ---
 

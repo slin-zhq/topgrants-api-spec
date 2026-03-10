@@ -319,6 +319,7 @@ DRAFT_FINAL_REVIEW
     "applicationTracks": {
       "phdCandidate": {
         "fixedQuota": "integer (核定名額)",
+        "totalApplicationsCount": "integer", // 該組別總申請數，不限於目前 DC 所負責的部分。
         "evaluationRubrics": [
           {
             "title": "string",
@@ -328,7 +329,8 @@ DRAFT_FINAL_REVIEW
         "disciplines": [
           {
             "name": "string (必須在這個組別和週期中唯一)",
-            "minNumInitialReviewers": "integer"
+            "minNumInitialReviewers": "integer",
+            "totalApplicationsCount": "integer" // 該學門的總申請數，不限於目前 DC 所負責的部分。
           }
         ],
         "applications": [
@@ -405,10 +407,10 @@ DRAFT_FINAL_REVIEW
                 ]
               }
             ],
-            "initialReviewSummary": {
+            "initialReviewsSummary": {
               // 若前端需要處理狀態/階段變更，則需要此資訊
-              "numConfirmedReviewers": "integer",
-              "numReviewsCompleted": "integer"
+              "confirmedReviewersCount": "integer",
+              "reviewsCompletedCount": "integer"
             },
             "finalReview": {
               "score": "integer | null",
@@ -421,6 +423,7 @@ DRAFT_FINAL_REVIEW
       },
       "youngScholar": {
         "fixedQuota": "integer",
+        "totalApplicationsCount": "integer", // 該組別總申請數，不限於目前 DC 所負責的部分。
         "evaluationRubrics": [
           {
             "title": "string",
@@ -430,7 +433,8 @@ DRAFT_FINAL_REVIEW
         "disciplines": [
           {
             "name": "string",
-            "minNumInitialReviewers": "integer"
+            "minNumInitialReviewers": "integer",
+            "totalApplicationsCount": "integer" // 該學門的總申請數，不限於目前 DC 所負責的部分。
           }
         ],
         "applications": [
@@ -506,10 +510,8 @@ DRAFT_FINAL_REVIEW
                 ]
               }
             ],
-            "initialReviewSummary": {
-              // 若前端需要處理狀態/階段變更，則需要此資訊
-              "numConfirmedReviewers": "integer",
-              "numReviewsCompleted": "integer"
+            "initialReviewsSummary": {
+              // 與 phdCandidate 組別相同
             },
             "finalReview": {
               "score": "integer | null",
@@ -715,20 +717,20 @@ DRAFT_FINAL_REVIEW
 
 ---
 
-## 7. 參考資料: 期望值 (Expected Value) 計算
+## 7. 參考資料: 預計入選名額 計算
 
-> 注意：此資訊僅為背景知識而分享。前端可自行處理計算，同時也需要來自後端的 `expectedValue`。
-
-每個學門的 `expectedValue` 是一個「彈性」的推薦配額 — 供 DC 在決定要給多少申請人高分時作為參考。
+每個學門的 `預計入選名額` 是一個「彈性」的推薦配額 — 供 DC 在決定要給多少申請人高分時作為參考。
 
 **預設公式如下:**
 
 ```
 overallSelectionRatio = fixedQuota / totalApplicationsInTrack
 
-expectedValue (對每個學門) = disciplineApplicantCount × overallSelectionRatio
+預計入選名額 (對每個學門) = disciplineApplicantCount × overallSelectionRatio
 ```
 
-**保權性設計:** 若某個學門算出來的 `expectedValue < 1.0`，基於代表性公平原則，DC 仍然可以為該學門推薦 1 位評價較高的候選人。
+**保權性設計:** 若某個學門算出來的 `預計入選名額 < 1.0`，基於代表性公平原則，DC 仍然可以為該學門推薦 1 位評價較高的候選人。
 
-`overallSelectionRatio` 和各學門的 `expectedValue` 皆由後端計算並回傳，前端不需要重新計算。
+`overallSelectionRatio` 和各學門的 `預計入選名額` 皆由後端計算並回傳，前端不應重新計算。
+
+> 注意：或者，前端可自行處理計算，而不需要來自後端的 `預計入選名額`。

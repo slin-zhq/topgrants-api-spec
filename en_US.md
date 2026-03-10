@@ -412,6 +412,11 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
                 ]
               }
             ],
+            "initialReviewSummary": {
+              // This is needed, should frontend needs to handle the status/state change
+              "numConfirmedReviewers": "integer",
+              "numReviewsCompleted": "integer"
+            },
             "finalReview": {
               "score": "integer | null",
               "remarks": "string | null",

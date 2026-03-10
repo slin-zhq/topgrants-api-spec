@@ -405,6 +405,11 @@ DRAFT_FINAL_REVIEW
                 ]
               }
             ],
+            "initialReviewSummary": {
+              // 若前端需要處理狀態/階段變更，則需要此資訊
+              "numConfirmedReviewers": "integer",
+              "numReviewsCompleted": "integer"
+            },
             "finalReview": {
               "score": "integer | null",
               "remarks": "string | null",
@@ -501,6 +506,11 @@ DRAFT_FINAL_REVIEW
                 ]
               }
             ],
+            "initialReviewSummary": {
+              // 若前端需要處理狀態/階段變更，則需要此資訊
+              "numConfirmedReviewers": "integer",
+              "numReviewsCompleted": "integer"
+            },
             "finalReview": {
               "score": "integer | null",
               "remarks": "string | null",

@@ -247,41 +247,41 @@ Content-Type: application/json
 
 ### 5.1. 狀態值
 
-| 值                       | 顯示文字 (ZhTW) | 意義                                                                                                                  |
-| ------------------------ | --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `PENDING_RECOMMENDATION` | 待推薦          | DC 尚未提交任何推薦委員，**或** 尚未有任何推薦紀錄。                                                                  |
-| `PENDING_INITIAL_REVIEW` | 待初審          | 至少存在一筆推薦紀錄。可能尚無任何已確認的委員。或者如果有的話，並非所有已確認的委員都已完成審查。DC 無已儲存的草稿。 |
-| `PENDING_FINAL_REVIEW`   | 待複審          | 至少有 `minNumInitialReviewers` 個已確認的委員提交了他們的審查結果。DC 尚未儲存任何草稿。                             |
-| `DRAFT_FINAL_REVIEW`     | 待送出          | DC 已儲存決審草稿 (`isFinalized = false`)。初審可能完成也可能未完全完成；直到完成前將被阻擋送出。                     |
-| `COMPLETED`              | 已完成          | DC 已提交並完成決審 (`isFinalized = true`)。                                                                          |
+| 值       | 顯示文字 (ZhTW) | 意義                                                                                                                  |
+| -------- | --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `待推薦` | 待推薦          | DC 尚未提交任何推薦委員，**或** 尚未有任何推薦紀錄。                                                                  |
+| `待初審` | 待初審          | 至少存在一筆推薦紀錄。可能尚無任何已確認的委員。或者如果有的話，並非所有已確認的委員都已完成審查。DC 無已儲存的草稿。 |
+| `待複審` | 待複審          | 至少有 `minNumInitialReviewers` 個已確認的委員提交了他們的審查結果。DC 尚未儲存任何草稿。                             |
+| `待送出` | 待送出          | DC 已儲存決審草稿 (`isFinalized = false`)。初審可能完成也可能未完全完成；直到完成前將被阻擋送出。                     |
+| `已完成` | 已完成          | DC 已提交並完成決審 (`isFinalized = true`)。                                                                          |
 
 ### 5.2. 狀態轉換條件
 
 ```
-PENDING_RECOMMENDATION
-  ─► PENDING_INITIAL_REVIEW
+待推薦
+  ─► 待初審
         時機：DC 提交至少一名推薦委員。
-  ─► DRAFT_FINAL_REVIEW
+  ─► 待送出
         時機：DC 在提交任何推薦前先儲存了一份草稿。
               [邊緣情況 — 不常見但允許]
 
-PENDING_INITIAL_REVIEW
-  ─► PENDING_FINAL_REVIEW
+待初審
+  ─► 待複審
         時機：至少 `minNumInitialReviewers` 名已確認的委員的 reviewStatus = "已完成"
               且 DC 無已儲存草稿
-  ─► DRAFT_FINAL_REVIEW
+  ─► 待送出
         時機：DC 在最低要求的初審數量完成之前先儲存了一份草稿。
 
-PENDING_FINAL_REVIEW
-  ─► PENDING_INITIAL_REVIEW  (退回)
+待複審
+  ─► 待初審  (退回)
         時機：已完成的初審被撤銷/作廢，且已完成的數量降至 `minNumInitialReviewers` 以下。
-  ─► DRAFT_FINAL_REVIEW
+  ─► 待送出
         時機：DC 儲存草稿 (PUT /final-review, isFinalized = false)
-  ─► COMPLETED
+  ─► 已完成
         時機：DC 在沒有先前草稿的情況下完成 (PUT /final-review, isFinalized = true)
 
-DRAFT_FINAL_REVIEW
-  ─► COMPLETED
+待送出
+  ─► 已完成
         時機：DC 提交 (PUT /final-review, isFinalized = true)
               並且至少 `minNumInitialReviewers` 名已確認的委員的 reviewStatus = "已完成"
               如果不符合此條件，後端必須以 409 CONFLICT 拒絕。
@@ -291,7 +291,7 @@ DRAFT_FINAL_REVIEW
 
 1. DC **可以儲存草稿** (`isFinalized = false`) 在任何時候，即使在所有初審完之前。
 2. DC **無法決定送出 (finalize)** (`isFinalized = true`) 除非至少 `minNumInitialReviewers` 名初審委員已完成。後端必須使用 `409 CONFLICT` 強制執行。
-3. 一旦申請案達到 `COMPLETED`，就不接受進一步的編輯。隨後的 `PUT /final-review` 呼叫必須被拒絕，回傳 `409 CONFLICT`。
+3. 一旦申請案達到 `已完成`，就不接受進一步的編輯。隨後的 `PUT /final-review` 呼叫必須被拒絕，回傳 `409 CONFLICT`。
 4. 如果一位已經完成審查 (`reviewStatus = "已完成"`) 的委員後來在管理層面被撤銷 (極端情況)，後端必須相應地重新評估申請案的狀態。
 
 ---
@@ -338,7 +338,7 @@ DRAFT_FINAL_REVIEW
             "id": "string (UUID)",
             "disciplineAppliedFor": "string (與上面 disciplines 列表中的學門名稱相符)",
             "submittedDateTime": "string (ISO 8601)",
-            "status": "PENDING_RECOMMENDATION | PENDING_INITIAL_REVIEW | PENDING_FINAL_REVIEW | DRAFT_FINAL_REVIEW | COMPLETED",
+            "status": "待推薦 | 待初審 | 待複審 | 待送出 | 已完成",
             "nameZhTW": "string",
             "nameEn": "string",
             "gender": "string",
@@ -442,7 +442,7 @@ DRAFT_FINAL_REVIEW
             "id": "string (UUID)",
             "disciplineAppliedFor": "string",
             "submittedDateTime": "string (ISO 8601)",
-            "status": "PENDING_RECOMMENDATION | PENDING_INITIAL_REVIEW | PENDING_FINAL_REVIEW | DRAFT_FINAL_REVIEW | COMPLETED",
+            "status": "待推薦 | 待初審 | 待複審 | 待送出 | 已完成",
             "nameZhTW": "string",
             "nameEn": "string",
             "gender": "string",
@@ -687,7 +687,7 @@ DRAFT_FINAL_REVIEW
 - 當 `isFinalized = false` (草稿) 時：不需要檢查初審完成的情況。
 - 當 `isFinalized = true`：
   - 至少 `minNumInitialReviewers` 個確認的初審委員狀態需為 `reviewStatus = '已完成'`。後端必須檢查，如果不符合時回傳 `409 CONFLICT`。
-- 一旦申請案的狀態進入到 `COMPLETED`（先前已決審），此後所有後續的 `PUT` 請求必須被拒絕，回傳 `409 CONFLICT`。
+- 一旦申請案的狀態進入到 `已完成`（先前已決審），此後所有後續的 `PUT` 請求必須被拒絕，回傳 `409 CONFLICT`。
 
 **回應 (`200 OK`):**
 
@@ -706,14 +706,14 @@ DRAFT_FINAL_REVIEW
 
 **錯誤:**
 
-| 代碼 | ErrorType               | 條件                                                                                                       |
-| ---- | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 400  | `VALIDATION_ERROR`      | `score` 或 `remarks` 帶有 null 值或是未出現。                                                              |
-| 401  | `AUTHENTICATION_ERROR`  | 無效或過期的憑證                                                                                           |
-| 403  | `AUTHORIZATION_ERROR`   | 此申請案不隸屬於被分配至此 DC 的學門                                                                       |
-| 404  | `NOT_FOUND`             | 找不到申請案。                                                                                             |
-| 409  | `CONFLICT`              | 為 `isFinalized = true` 的同時並沒有滿足最低要求數量的委員提交初審，或者是申請案本身已經處在 `COMPLETED`。 |
-| 500  | `INTERNAL_SERVER_ERROR` | 意外的後端錯誤。                                                                                           |
+| 代碼 | ErrorType               | 條件                                                                                                    |
+| ---- | ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| 400  | `VALIDATION_ERROR`      | `score` 或 `remarks` 帶有 null 值或是未出現。                                                           |
+| 401  | `AUTHENTICATION_ERROR`  | 無效或過期的憑證                                                                                        |
+| 403  | `AUTHORIZATION_ERROR`   | 此申請案不隸屬於被分配至此 DC 的學門                                                                    |
+| 404  | `NOT_FOUND`             | 找不到申請案。                                                                                          |
+| 409  | `CONFLICT`              | 為 `isFinalized = true` 的同時並沒有滿足最低要求數量的委員提交初審，或者是申請案本身已經處在 `已完成`。 |
+| 500  | `INTERNAL_SERVER_ERROR` | 意外的後端錯誤。                                                                                        |
 
 ---
 

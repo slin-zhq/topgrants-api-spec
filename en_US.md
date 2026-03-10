@@ -250,41 +250,41 @@ The backend computes and owns each application's `status`. The DC cannot set it 
 
 ### 5.1 Status Values
 
-| Value                    | Display (ZhTW) | Meaning                                                                                                                                                                                       |
-| ------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PENDING_RECOMMENDATION` | 待推薦         | DC has not yet submitted any reviewer recommendations, **or** there is not yet any recommendation record.                                                                                     |
-| `PENDING_INITIAL_REVIEW` | 待初審         | At least one recommendation record is present. There can be no confirmed reviewers yet. Or, if there is any, not all confirmed reviewers have completed their reviews. DC has no saved draft. |
-| `PENDING_FINAL_REVIEW`   | 待複審         | At least `minNumInitialReviewers` confirmed reviewers have submitted their reviews. DC has not yet saved any draft.                                                                           |
-| `DRAFT_FINAL_REVIEW`     | 待送出         | DC has saved a draft final review (`isFinalized = false`). Initial reviews may or may not all be complete; finalization is blocked until they are.                                            |
-| `COMPLETED`              | 已完成         | DC has submitted and finalized the review (`isFinalized = true`).                                                                                                                             |
+| Value    | Display (ZhTW) | Meaning                                                                                                                                                                                       |
+| -------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `待推薦` | 待推薦         | DC has not yet submitted any reviewer recommendations, **or** there is not yet any recommendation record.                                                                                     |
+| `待初審` | 待初審         | At least one recommendation record is present. There can be no confirmed reviewers yet. Or, if there is any, not all confirmed reviewers have completed their reviews. DC has no saved draft. |
+| `待複審` | 待複審         | At least `minNumInitialReviewers` confirmed reviewers have submitted their reviews. DC has not yet saved any draft.                                                                           |
+| `待送出` | 待送出         | DC has saved a draft final review (`isFinalized = false`). Initial reviews may or may not all be complete; finalization is blocked until they are.                                            |
+| `已完成` | 已完成         | DC has submitted and finalized the review (`isFinalized = true`).                                                                                                                             |
 
 ### 5.2 Transition Conditions
 
 ```
-PENDING_RECOMMENDATION
-  ─► PENDING_INITIAL_REVIEW
+待推薦
+  ─► 待初審
         When: DC submits at least one reviewer recommendation.
-  ─► DRAFT_FINAL_REVIEW
+  ─► 待送出
         When: DC saves a draft before submitting any recommendations
               [edge case — uncommon but allowed]
 
-PENDING_INITIAL_REVIEW
-  ─► PENDING_FINAL_REVIEW
+待初審
+  ─► 待複審
         When: At least `minNumInitialReviewers` confirmed reviewers' reviewStatus = "已完成"
               AND DC has no saved draft
-  ─► DRAFT_FINAL_REVIEW
+  ─► 待送出
         When: DC saves a draft before the minimum required initial reviews are complete
 
-PENDING_FINAL_REVIEW
-  ─► PENDING_INITIAL_REVIEW  (regression)
+待送出
+  ─► 待初審  (regression)
         When: A completed initial review is revoked/invalidated and completed count drops below `minNumInitialReviewers`
-  ─► DRAFT_FINAL_REVIEW
+  ─► 待送出
         When: DC saves a draft (PUT /final-review, isFinalized = false)
-  ─► COMPLETED
+  ─► 已完成
         When: DC finalizes without a prior draft (PUT /final-review, isFinalized = true)
 
-DRAFT_FINAL_REVIEW
-  ─► COMPLETED
+待送出
+  ─► 已完成
         When: DC submits (PUT /final-review, isFinalized = true)
               AND at least `minNumInitialReviewers` confirmed reviewers' reviewStatus = "已完成"
               Backend must reject with 409 CONFLICT if this condition is not met.
@@ -294,7 +294,7 @@ DRAFT_FINAL_REVIEW
 
 1. DC **may save a draft** (`isFinalized = false`) at any time, even before all initial reviews are complete.
 2. DC **cannot finalize** (`isFinalized = true`) unless at least `minNumInitialReviewers` reviewers have completed their initial reviews. Backend must enforce this with `409 CONFLICT`.
-3. Once an application reaches `COMPLETED`, no further edits are accepted. Subsequent `PUT /final-review` calls must be rejected with `409 CONFLICT`.
+3. Once an application reaches `已完成`, no further edits are accepted. Subsequent `PUT /final-review` calls must be rejected with `409 CONFLICT`.
 4. If a reviewer who has already completed their review (`reviewStatus = "已完成"`) is later revoked at the admin level (edge case), the backend must re-evaluate the application status accordingly.
 
 ---
@@ -344,7 +344,7 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
             "id": "string (UUID)",
             "disciplineAppliedFor": "string (matches a discipline name in the disciplines list above)",
             "submittedDateTime": "string (ISO 8601)",
-            "status": "PENDING_RECOMMENDATION | PENDING_INITIAL_REVIEW | PENDING_FINAL_REVIEW | DRAFT_FINAL_REVIEW | COMPLETED",
+            "status": "待推薦 | 待初審 | 待複審 | 待送出 | 已完成",
             "nameZhTW": "string",
             "nameEn": "string",
             "gender": "string",
@@ -450,7 +450,7 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
             "id": "string (UUID)",
             "disciplineAppliedFor": "string",
             "submittedDateTime": "string (ISO 8601)",
-            "status": "PENDING_RECOMMENDATION | PENDING_INITIAL_REVIEW | PENDING_FINAL_REVIEW | DRAFT_FINAL_REVIEW | COMPLETED",
+            "status": "待推薦 | 待初審 | 待複審 | 待送出 | 已完成",
             "nameZhTW": "string",
             "nameEn": "string",
             "gender": "string",
@@ -706,7 +706,7 @@ Saves a draft or finalizes the DC's final review for an application. Idempotent 
 - When `isFinalized = false` (draft): No restriction on initial review completion.
 - When `isFinalized = true`:
   - At least `minNumInitialReviewers` confirmed reviewers must have `reviewStatus = '已完成'`. Backend must enforce this; return `409 CONFLICT` if not.
-- Once an application is `COMPLETED` (previously finalized), any subsequent `PUT` must be rejected with `409 CONFLICT`.
+- Once an application is `已完成` (previously finalized), any subsequent `PUT` must be rejected with `409 CONFLICT`.
 
 **Response (`200 OK`):**
 
@@ -725,14 +725,14 @@ Saves a draft or finalizes the DC's final review for an application. Idempotent 
 
 **Errors:**
 
-| Code | ErrorType               | Condition                                                                                                             |
-| ---- | ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| 400  | `VALIDATION_ERROR`      | `score` or `remarks` is null or missing                                                                               |
-| 401  | `AUTHENTICATION_ERROR`  | Invalid or expired token                                                                                              |
-| 403  | `AUTHORIZATION_ERROR`   | Application does not belong to the DC's assigned disciplines                                                          |
-| 404  | `NOT_FOUND`             | Application not found                                                                                                 |
-| 409  | `CONFLICT`              | `isFinalized = true` but the minimum required initial reviews are not complete; or application is already `COMPLETED` |
-| 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                                                                            |
+| Code | ErrorType               | Condition                                                                                                          |
+| ---- | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 400  | `VALIDATION_ERROR`      | `score` or `remarks` is null or missing                                                                            |
+| 401  | `AUTHENTICATION_ERROR`  | Invalid or expired token                                                                                           |
+| 403  | `AUTHORIZATION_ERROR`   | Application does not belong to the DC's assigned disciplines                                                       |
+| 404  | `NOT_FOUND`             | Application not found                                                                                              |
+| 409  | `CONFLICT`              | `isFinalized = true` but the minimum required initial reviews are not complete; or application is already `已完成` |
+| 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                                                                         |
 
 <!-- ---
 

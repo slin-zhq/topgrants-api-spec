@@ -4,25 +4,26 @@
 
 **Scope:** Covers the Discipline Convener (DC / 學門召集人) client only. Admin-side and applicant-side endpoints are out of scope.
 
-**Base URL:** `/api/v1`
+**Versioning:** Version names are to be included inside the AI response body. Breaking changes increment the major version. All current development targets `v1`.
 
-**Versioning:** URL-path versioning (`/v1`, `/v2`, …). Breaking changes increment the major version. All current development targets `v1`.
+**Premises:**
 
-**Assumptions:**
-
-- There will be an API Gateway that integrates `phdCandidate` and `youngScholar` backends, and can identify which track an application belongs to via `applicationId`.
-- Should the above premise cannot hold, we would need to adopt the following pattern: `/api/v1/phdCandidate/applications/...` and `/api/v1/youngScholar/applications/...`.
+- There will not currently be an API Gateway that integrates `phdCandidate` and `youngScholar` backends, so there will be separate corresponding endpoints.
+- Hence, the following pattern is to be adopted: `/api/phd-candidate/applications/...` and `/api/young-scholar/applications/...`.
 
 ---
 
 ## 1. Design Principles
 
-- Every endpoint except `POST /sessions` and `POST /sessions/refresh` requires an `Authorization: Bearer <sessionToken>` header.
-- The system is available only after all applicant submissions are closed. Write operations regarding discipline convener affairs are rejected before this window opens.
-- Home/Welcome page data is loaded in a single bulk request (`GET /users/me/grant-cycle`) to minimize round-trips. Initial reviewer detail (scores, comments) is fetched on demand per application.
+<!-- - Every endpoint except `POST /sessions` and `POST /sessions/refresh` requires an `Authorization: Bearer <sessionToken>` header. -->
+
 - Each `POST` to `/applications/{id}/reviewer-recommendations` **appends** a new recommendation record. It does not replace prior records.
 - The backend computes and owns each application's `status`. The DC user cannot set it directly.
 - `POST` creates a new sub-resource. `PUT` replaces an existing resource (idempotent). `DELETE` removes a resource.
+
+> Note:
+>
+> - (2026/03/13 Update) New applications may still arrive after the review stage begins. Therefore, the commencement of application processing by the DC user does not imply a freeze on new submissions. The frontend will display any newly arrived applications upon user login or manual refresh.
 
 ---
 
@@ -103,40 +104,32 @@ All API responses share this structure:
 
 ## 4. Authentication
 
-### 4.1 CAPTCHA
+[Update after 2026/03/13 discussion] This revamped Frontend for DC users will no longer handle user authentication. The revised authentication flow is like so:
 
-**Who handles CAPTCHA:** It is a split responsibility.
+1. When User visits the deployed web app, they will be greeted with a page having only the "Log In" button.
+2. User clicks "Log In", which triggers a browser window pop-up – similar to SSO flow through 3rd party services, like Google, Apple, WeChat, etc.
+3. The authentication process is to be handled by the 廠商, in which User interacts with the UI built by 廠商 until success.
+4. Meanwhile, the main app will wait until receving authenticated session token. Otherwise, User will be prompted to retry once timeout is triggered.
+5. The main app will store the authenticated token for subsequent API calls.
 
-- **Frontend** loads the CAPTCHA provider's script, invokes it on login form submit to obtain a one-time `captchaToken`, and sends that token alongside credentials.
-- **Backend** never generates or renders CAPTCHA challenges. It receives `captchaToken`, verifies it server-to-server (a private POST to the CAPTCHA provider's verification API), and accepts or rejects the login accordingly.
+**Aligning with secuirity requirements**
 
-**Provider (recommended by AI):** [Google reCAPTCHA v3](https://developers.google.com/recaptcha/docs/v3) (invisible, score-based — no user interaction needed) or [hCaptcha](https://www.hcaptcha.com) (privacy-first alternative with equivalent API behavior).
+In light of security requirements,
 
-> ⚠️ **Open Decision:** Confirm the CAPTCHA provider before implementation. Frontend and backend must use the matching site key (public, frontend) and secret key (private, backend) from the same provider.
-
-**reCAPTCHA v3 token flow:**
-
-1. Frontend loads `<script src="https://www.google.com/recaptcha/api.js?render=SITE_KEY"></script>`.
-2. On login submit: call `grecaptcha.execute(SITE_KEY, { action: 'login' })` → resolves to `captchaToken`.
-3. Include `captchaToken` in `POST /sessions` request body.
-4. Backend calls `POST https://www.google.com/recaptcha/api/siteverify` with the token and secret key.
-5. Backend checks that `score >= 0.5` (threshold configurable). If not, return `400 CAPTCHA_ERROR`.
+1. Frontend will prompt User via an alert dialog to get authenticated, some time before the session token expires (say, 2 mins). Of course, Frontend will display a live timer on the session valid duration.
+2. Should User choose to log in again, she will be redirected to the authentication flow. Upon successful authentication, Frontend stores the new session token, and she can continue as usual.
+3. Should no activity is detected, Frontend will detect unsaved changes, and make an API call while the token is valid to save user changes. Then, Frontend will log User out.
 
 ---
 
-### `POST /sessions` — Login
+### `POST /api/sessions` — Login
 
-No `Authorization` header required.
+> [TODO] Details to be confirmed later.
+
+<!-- No `Authorization` header required.
 
 **Request Body:**
 
-```json
-{
-  "username": "string",
-  "password": "string",
-  "captchaToken": "string"
-}
-```
 
 **Response (`200 OK`):**
 
@@ -163,11 +156,11 @@ No `Authorization` header required.
 | 400  | `VALIDATION_ERROR`     | `username` or `password` is missing                                   |
 | 400  | `CAPTCHA_ERROR`        | `captchaToken` is missing, invalid, expired, or score below threshold |
 | 401  | `AUTHENTICATION_ERROR` | Credentials are incorrect                                             |
-| 429  | `RATE_LIMIT_ERROR`     | Too many failed login attempts from this IP/user                      |
+| 429  | `RATE_LIMIT_ERROR`     | Too many failed login attempts from this IP/user                      | -->
 
 ---
 
-### `DELETE /sessions` — Logout
+### `DELETE /api/sessions` — Logout
 
 **Headers:** `Authorization: Bearer <sessionToken>`
 
@@ -194,48 +187,7 @@ No `Authorization` header required.
 
 ---
 
-### `POST /sessions/refresh` — Refresh Session Token
-
-Extends the session without re-login. Frontend should call this proactively before `expiresAt` (e.g., 5 minutes before expiry). No `Authorization` header required; uses the `refreshToken` issued at login.
-
-**Request Body:**
-
-```json
-{
-  "refreshToken": "string"
-}
-```
-
-**Response (`200 OK`):**
-
-```json
-{
-  "status": "success",
-  "code": 200,
-  "timestamp": "string (ISO 8601)",
-  "apiVersion": "v1",
-  "data": {
-    "sessionToken": "string (JWT)",
-    "refreshToken": "string (rotated — previous token is immediately invalidated)",
-    "expiresAt": "string (ISO 8601)"
-  },
-  "error": null
-}
-```
-
-> Refresh tokens are rotated on each use to mitigate replay attacks.
-
-**Errors:**
-
-| Code | ErrorType              | Condition                                      |
-| ---- | ---------------------- | ---------------------------------------------- |
-| 401  | `AUTHENTICATION_ERROR` | `refreshToken` is missing, invalid, or expired |
-
----
-
 ### Authenticated Request Headers
-
-Required on all endpoints except `POST /sessions` and `POST /sessions/refresh`:
 
 ```
 Authorization: Bearer <sessionToken>
@@ -301,13 +253,21 @@ The backend computes and owns each application's `status`. The DC cannot set it 
 
 ## 6. Endpoints
 
-### 6.1 `GET /users/me/grant-cycle` — Home & Welcome Page Data
+All calls to the following endpoints will have `Authorization: Bearer <sessionToken>` header. All endpoints are to be prefixed with `/api`.
 
-Returns all data needed to render the Welcome and Home pages and enable all DC user interactions. Both tracks and all assigned disciplines are included in one response. Per-application initial reviewer detail (scores, comments) is fetched separately via §6.2.
+---
+
+### 6.1 `GET /phd-candidate/users/me/review-batches` and `GET /young-scholar/users/me/review-batches` — "Home" Page Data
+
+`review batch` = `審查梯次`
 
 **Request Body:** None.
 
 **Response (`200 OK`):**
+
+Must return only active review batches.
+
+For **`phd-candidate`**:
 
 ```json
 {
@@ -316,249 +276,356 @@ Returns all data needed to render the Welcome and Home pages and enable all DC u
   "timestamp": "string (ISO 8601)",
   "apiVersion": "v1",
   "data": {
-    "grantCycleId": "string (UUID)",
+    "reviewBatchId": "string (UUID)",
     "year": "integer",
     "deadlineDateTime": "string (ISO 8601, must include time and UTC offset)",
-    // "grantTitle": "國科會補助人文及社會科學研究海外人才培育計畫",
-    "applicationTracks": {
-      "phdCandidate": {
-        "fixedQuota": "integer (核定名額)",
-        "totalApplicationsCount": "integer", // Total no. of applications, not limited to those to be handled by current DC user.
-        // "overallSelectionRatio": "number (float; = fixedQuota / totalApplicationsCount, e.g., 0.42)",
-        "evaluationRubrics": [
-          {
-            "title": "string",
-            "fullScore": "integer"
-          }
-        ],
-        "disciplines": [
-          {
-            "name": "string (must be unique within this track and cycle)",
-            "minNumInitialReviewers": "integer",
-            "totalApplicationsCount": "integer" // Total no. of applications, not limited to those to be handled by current DC user.
-            // "expectedValue": "number (float, 2 decimal places; = discipline applicant count × overallSelectionRatio)"
-          }
-        ],
-        "applications": [
-          {
-            "id": "string (UUID)",
-            "disciplineAppliedFor": "string (matches a discipline name in the disciplines list above)",
-            "submittedDateTime": "string (ISO 8601)",
-            "status": "待推薦 | 待初審 | 待複審 | 待送出 | 已完成",
-            "nameZhTW": "string",
-            "nameEn": "string",
-            "gender": "string",
-            "email": "string",
-            "currentInstitutionAndDepartmentZhTw": "string",
-            "currentInstitutionAndDepartmentEn": "string",
-            "doctoralThesisTitleZhTw": "string",
-            "doctoralThesisTitleEn": "string",
-            "thesisAbstractZhTw": "string",
-            "thesisAbstractEn": "string",
-            "expectedImpact": "string",
-            "applicantEduBackground": [
-              {
-                "institution": "string",
-                "department": "string",
-                "country": "string",
-                "degree": "string",
-                "graduationStatus": "string",
-                "startYearAndMonth": "string (YYYY/MM)",
-                "endYearAndMonth": "string (YYYY/MM) | null (null if currently enrolled)"
-              }
-            ],
-            "attachments": {
-              "researchProposal": { "fileName": "string", "fileUrl": "string" },
-              "publicationList": { "fileName": "string", "fileUrl": "string" },
-              "phdCandidacyCertificate": {
-                "fileName": "string",
-                "fileUrl": "string"
-              },
-              "phdTranscripts": { "fileName": "string", "fileUrl": "string" },
-              "publishedWorks": [
-                {
-                  "displayName": "string",
-                  "fileName": "string",
-                  "fileUrl": "string"
-                }
-              ]
-            },
-            "advisors": [
-              {
-                "name": "string",
-                "jobTitle": "string",
-                "institutionAndDepartment": "string",
-                "email": "string",
-                "eduBackground": "string",
-                "workExperience": "string",
-                "evaluationOfApplicant": {
-                  "researchPotential": "string",
-                  "thesisContent": "string",
-                  "thesisAdvisingMethod": "string",
-                  "thesisProgressInPercentages": "integer (0–100)"
-                }
-              }
-            ],
-            "recommendationRecords": [
-              {
-                "id": "string (UUID)",
-                "createdDateTime": "string (ISO 8601)",
-                "reviewers": [
-                  {
-                    "priority": "integer (starts from 1; lower = higher priority)",
-                    "name": "string",
-                    "email": ["string"],
-                    "remarks": "string | null (DC's reason for recommending this reviewer)"
-                  }
-                ]
-              }
-            ],
-            "initialReviewSummary": {
-              // This is needed, should frontend needs to handle the status/state change
-              "confirmedReviewersCount": "integer",
-              "reviewsCompletedCount": "integer"
-            },
-            "finalReview": {
-              "score": "integer | null",
-              "remarks": "string | null",
-              "isFinalized": "boolean",
-              "updatedDateTime": "string (ISO 8601) | null (null if no save has occurred)"
-            }
-          }
-        ]
-      },
-      "youngScholar": {
-        "fixedQuota": "integer",
-        "totalApplicationsCount": "integer", // Total no. of applications, not limited to those to be handled by current DC user.
-        // "overallSelectionRatio": "number (float)",
-        "evaluationRubrics": [
-          {
-            "title": "string",
-            "fullScore": "integer"
-          }
-        ],
-        "disciplines": [
-          {
-            "name": "string",
-            "minNumInitialReviewers": "integer",
-            "totalApplicationsCount": "integer" // Total no. of applications, not limited to those to be handled by current DC user.
-            // "expectedValue": "number (float, 2 decimal places)"
-          }
-        ],
-        "applications": [
-          {
-            "id": "string (UUID)",
-            "disciplineAppliedFor": "string",
-            "submittedDateTime": "string (ISO 8601)",
-            "status": "待推薦 | 待初審 | 待複審 | 待送出 | 已完成",
-            "nameZhTW": "string",
-            "nameEn": "string",
-            "gender": "string",
-            "email": "string",
-            "currentInstitutionAndDepartmentZhTw": "string",
-            "currentInstitutionAndDepartmentEn": "string",
-            "publicationTitleEn": "string",
-            "publicationAbstractZhTw": "string",
-            "publicationAbstractEn": "string",
-            "expectedImpact": "string",
-            "applicantEduBackground": [
-              {
-                "institution": "string",
-                "department": "string",
-                "country": "string",
-                "degree": "string",
-                "graduationStatus": "string",
-                "startYearAndMonth": "string (YYYY/MM)",
-                "endYearAndMonth": "string (YYYY/MM) | null"
-              }
-            ],
-            "applicantWorkExperience": [
-              {
-                "institution": "string",
-                "department": "string",
-                "jobTitle": "string",
-                "startYearAndMonth": "string (YYYY/MM)",
-                "endYearAndMonth": "string (YYYY/MM) | null"
-              }
-            ],
-            "attachments": {
-              "researchProposal": { "fileName": "string", "fileUrl": "string" },
-              "publicationList": { "fileName": "string", "fileUrl": "string" },
-              "doctoralDegreeCertificate": {
-                "fileName": "string",
-                "fileUrl": "string"
-              },
-              "employmentProof": {
-                "fileName": "string",
-                "fileUrl": "string"
-              },
-              "supervisorRecommendationLetter": {
-                "fileName": "string",
-                "fileUrl": "string"
-              },
-              "publishedWorks": [
-                {
-                  "displayName": "string",
-                  "fileName": "string",
-                  "fileUrl": "string"
-                }
-              ]
-            },
-            "recommendationRecords": [
-              {
-                "id": "string (UUID)",
-                "createdDateTime": "string (ISO 8601)",
-                "reviewers": [
-                  {
-                    "priority": "integer",
-                    "name": "string",
-                    "email": ["string"],
-                    "remarks": "string | null"
-                  }
-                ]
-              }
-            ],
-            "initialReviewSummary": {
-              // Same as `phdCandidate` track
-            },
-            "finalReview": {
-              "score": "integer | null",
-              "remarks": "string | null",
-              "isFinalized": "boolean",
-              "updatedDateTime": "string (ISO 8601) | null"
-            }
-          }
-        ]
+    "applicationSummary": [
+      {
+        "discipline": "string",
+        "applicationCountByStatus": {
+          "待推薦": "integer",
+          "待初審": "integer",
+          "待複審": "integer",
+          "待送出": "integer",
+          "已完成": "integer"
+        }
       }
-    }
-  },
-  "error": null
+    ]
+  }
 }
 ```
 
-> **Implementation Notes:**
->
-> - If the DC is assigned to only one track, the other track's `applications` array will be empty (not absent).
-> - `recommendationRecords` is sorted by `createdDateTime` descending (most recent record first).
-> - `disciplines` — backend must enforce unique names within each track and cycle.
-> - `youngScholar` applications do not have `advisors`; omit the field entirely for this track.
+For **`young-scholar`**:
 
-<!-- > - `invitationStatus` within each recommendation record's reviewer entries is maintained by the backend/admin side and will reflect the latest status at the time the DC refreshes. -->
-<!-- > - `overallSelectionRatio = fixedQuota / totalApplicationsCount` (computed by backend, not frontend).
-> - `expectedValue` per discipline `= disciplineApplicantCount × overallSelectionRatio`, rounded to 2 decimal places. If `expectedValue < 1.0`, the DC may still recommend 1 applicant per fairness rules (§3 of the requirements). -->
+```json
+{
+  // Same as `phd-candidate`
+}
+```
 
 **Errors:**
 
 | Code | ErrorType               | Condition                                                            |
 | ---- | ----------------------- | -------------------------------------------------------------------- |
 | 401  | `AUTHENTICATION_ERROR`  | Invalid or expired token                                             |
-| 403  | `AUTHORIZATION_ERROR`   | User is not a DC, or has no assigned disciplines in the active cycle |
-| 404  | `NOT_FOUND`             | No active grant cycle exists                                         |
+| 403  | `AUTHORIZATION_ERROR`   | User is not a DC, or has no assigned disciplines in the active batch |
+| 404  | `NOT_FOUND`             | No active review batch exists                                        |
 | 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                           |
 
 ---
 
-### 6.2 `GET /applications/{applicationId}/initial-reviewers` — Initial Reviewer Details
+### 6.2. `GET /phd-candidate/users/me/applications` and `GET /young-scholar/users/me/applications` - "Application List" Page per Track
+
+When User clicks "進入" on a particular track, this API will be called.
+
+**Request Body:**
+
+```json
+{
+  "reviewBatchId": "string"
+}
+```
+
+**Response (`200 OK`):**
+
+Both `phd-candidate` and `young-scholar` share the same response format:
+
+```json
+{
+  "status": "success",
+  "code": 200,
+  "timestamp": "string (ISO 8601)",
+  "apiVersion": "v1",
+  "data": {
+    "reviewBatchId": "string (UUID)",
+    "fixedQuota": "integer (核定名額/正取名額上限)",
+    "totalApplicationsCount": "integer", // Total no. of applications, not limited to those to be handled by current DC user.
+    "overallExpectedRatio": "number (float/double)",
+    "evaluationRubrics": [
+      // This is included here, for the DC reviewer to consult, when she is scoring on her own, before any initial review is completed.
+      {
+        "title": "string",
+        "fullScore": "integer"
+      }
+    ],
+    "disciplines": [
+      {
+        "name": "string (must be unique within this track and cycle)",
+        "totalApplicationsCount": "integer", // Total no. of applications, not limited to those to be handled by current DC user.
+        "projectedQuotaRaw": "number (float/double)",
+        "projectedQuotaRounded": "integer",
+        "applications": [
+          {
+            "id": "string (UUID)",
+            "status": "待推薦 | 待初審 | 待複審 | 待送出 | 已完成",
+            "applicantNameZhTW": "string",
+            "currentInstitutionAndDepartmentZhTw": "string",
+            "doctoralThesisTitleZhTw": "string",
+            "summaryStats": {
+              "mostRecentlyRecommendedInitialReviewerCount": "integer",
+              "confirmedInitialReviewerCount": "integer",
+              "completedInitialReviewCount": "integer"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Errors:**
+
+| Code | ErrorType               | Condition                                                            |
+| ---- | ----------------------- | -------------------------------------------------------------------- |
+| 401  | `AUTHENTICATION_ERROR`  | Invalid or expired token                                             |
+| 403  | `AUTHORIZATION_ERROR`   | User is not a DC, or has no assigned disciplines in the active batch |
+| 404  | `NOT_FOUND`             | No active review batch exists                                        |
+| 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                           |
+
+---
+
+### 6.3. `GET /phd-candidate/applications/{applicationId}` and `GET /young-scholar/applications/{applicationId}` - "Application Details" page
+
+**Path Parameter:**
+
+| Parameter       | Type        | Description           |
+| --------------- | ----------- | --------------------- |
+| `applicationId` | UUID string | ID of the application |
+
+**Request Body:** None.
+
+**Response (`200 OK`):**
+
+For **`/phd-candidate`**:
+
+```json
+{
+  "status": "success",
+  "code": 200,
+  "timestamp": "string (ISO 8601)",
+  "apiVersion": "v1",
+  "data": {
+    "applicationId": "string (UUID)",
+    "submittedDateTime": "string (ISO 8601)",
+    "applicantNameZhTW": "string",
+    "applicantNameEn": "string",
+    "email": "string",
+    "currentInstitutionAndDepartmentZhTw": "string",
+    "currentInstitutionAndDepartmentEn": "string",
+    "doctoralThesisTitleZhTw": "string",
+    "doctoralThesisTitleEn": "string",
+    "thesisAbstractZhTw": "string",
+    "thesisAbstractEn": "string",
+    "expectedImpact": "string",
+    "applicantEduBackground": [
+      {
+        "institution": "string",
+        "department": "string",
+        "country": "string",
+        "degree": "string",
+        "graduationStatus": "string",
+        "startYearAndMonth": "string (YYYY/MM)",
+        "endYearAndMonth": "string (YYYY/MM) | null (null if currently enrolled)"
+      }
+    ],
+    "attachments": {
+      "researchProposal": { "fileName": "string", "fileUrl": "string" }, // 論文計畫書
+      "publications": {
+        "tableOfContents": { "fileName": "string", "fileUrl": "string" }, // 著作目錄
+        "details": [
+          // 著作與學術成果
+          {
+            "displayName": "string",
+            "fileName": "string",
+            "fileUrl": "string"
+          }
+        ]
+      },
+      "phdCandidacyCertificate": {
+        // 博士候選人資格證明
+        "fileName": "string",
+        "fileUrl": "string"
+      },
+      "supplementaries": [
+        // 補充附件
+        {
+          "displayName": "string",
+          "fileName": "string",
+          "fileUrl": "string"
+        }
+      ]
+    },
+    "advisors": [
+      {
+        "name": "string",
+        "jobTitle": "string",
+        "institutionAndDepartment": "string",
+        "email": "string",
+        "eduBackground": "string",
+        "workExperience": "string",
+        "evaluationOfApplicant": {
+          "researchPotential": "string",
+          "thesisContent": "string",
+          "thesisAdvisingMethod": "string",
+          "thesisProgressInPercentages": "integer (0–100)"
+        }
+      }
+    ],
+    "finalReview": {
+      // Can be null
+      "score": "integer | null",
+      "remarks": "string | null",
+      "isFinalized": "boolean",
+      "updatedDateTime": "string (ISO 8601) | null (null if no save has occurred)"
+    }
+  }
+}
+```
+
+For **`/young-scholar`**:
+
+```json
+{
+  "status": "success",
+  "code": 200,
+  "timestamp": "string (ISO 8601)",
+  "apiVersion": "v1",
+  "data": {
+    "applicationId": "string (UUID)",
+    "submittedDateTime": "string (ISO 8601)",
+    "applicantNameZhTW": "string",
+    "applicantNameEn": "string",
+    "email": "string",
+    "currentInstitutionAndDepartmentZhTw": "string",
+    "currentInstitutionAndDepartmentEn": "string",
+    "monographTitleZhTw": "string", // 專書
+    "monographTitle": "string",
+    "monographAbstractZhTw": "string",
+    "monographAbstractEn": "string",
+    "expectedImpact": "string",
+    "applicantEduBackground": [
+      // Same as `phd-candidate`
+    ],
+    "applicantWorkExperience": [
+      {
+        "institution": "string",
+        "department": "string",
+        "jobTitle": "string",
+        "startYearAndMonth": "string (YYYY/MM)",
+        "endYearAndMonth": "string (YYYY/MM) | null"
+      }
+    ],
+    "attachments": {
+      "researchProposal": { "fileName": "string", "fileUrl": "string" }, // 計畫書
+      "publications": {
+        "tableOfContents": { "fileName": "string", "fileUrl": "string" }, // 著作目錄
+        "details": [
+          // 著作與學術成果
+          {
+            "displayName": "string",
+            "fileName": "string",
+            "fileUrl": "string"
+          }
+        ]
+      },
+      "doctoralDegreeCertificate": {
+        // 博士學位證書
+        "fileName": "string",
+        "fileUrl": "string"
+      },
+      "employmentProof": {
+        // 在職證明/合約影本
+        "fileName": "string",
+        "fileUrl": "string"
+      },
+      "supervisorRecommendationLetter": {
+        // 任職機構主管推薦函
+        "fileName": "string",
+        "fileUrl": "string"
+      },
+      "supplementaries": [
+        // 補充附件
+        {
+          "displayName": "string",
+          "fileName": "string",
+          "fileUrl": "string"
+        }
+      ]
+    },
+    "finalReview": {
+      // Can be null
+      "score": "integer | null",
+      "remarks": "string | null",
+      "isFinalized": "boolean",
+      "updatedDateTime": "string (ISO 8601) | null (null if no save has occurred)"
+    }
+  }
+}
+```
+
+**Errors:**
+
+| Code | ErrorType               | Condition                                                    |
+| ---- | ----------------------- | ------------------------------------------------------------ |
+| 401  | `AUTHENTICATION_ERROR`  | Invalid or expired token                                     |
+| 403  | `AUTHORIZATION_ERROR`   | Application does not belong to the DC's assigned disciplines |
+| 404  | `NOT_FOUND`             | Application not found                                        |
+| 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                   |
+
+---
+
+### 6.4. `GET /phd-candidate/applications/{applicationId}/recommendation-records` and `GET /young-scholar/applications/{applicationId}/recommendation-records` - Recommendation Records per Application
+
+**Path Parameter:**
+
+| Parameter       | Type        | Description           |
+| --------------- | ----------- | --------------------- |
+| `applicationId` | UUID string | ID of the application |
+
+**Request Body:** None.
+
+**Response Body:**
+
+Both `phd-candidate` and `young-scholar` share the same response format:
+
+```json
+{
+  "status": "success",
+  "code": 200,
+  "timestamp": "string (ISO 8601)",
+  "apiVersion": "v1",
+  "data": {
+    "applicationId": "string (UUID)",
+    "recommendationRecords": [
+      {
+        "createdDateTime": "string (ISO 8601)", // Records associated with an application are uniquely identified by their `createdDateTime`
+        "reviewers": [
+          {
+            "priority": "integer (starts from 1; lower = higher priority)",
+            "name": "string",
+            "email": ["string"],
+            "remarks": "string | null (DC's reason for recommending this reviewer)"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Errors:**
+
+| Code | ErrorType               | Condition                                                    |
+| ---- | ----------------------- | ------------------------------------------------------------ |
+| 401  | `AUTHENTICATION_ERROR`  | Invalid or expired token                                     |
+| 403  | `AUTHORIZATION_ERROR`   | Application does not belong to the DC's assigned disciplines |
+| 404  | `NOT_FOUND`             | Application not found                                        |
+| 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                   |
+
+---
+
+### 6.5 `GET /applications/{applicationId}/initial-reviews` — Initial Reviewer Details
 
 Returns confirmed initial reviewers and their review details for a specific application. Call this when the DC opens an application's detail view.
 
@@ -588,7 +655,7 @@ Returns confirmed initial reviewers and their review details for a specific appl
         "reviewDetails": {
           "statusUpdatedDateTime": "string (ISO 8601) | null",
           "scores": ["integer | null"],
-          //   "totalScore": "integer | null",
+          "totalScore": "integer | null",
           "remarks": "string | null"
         }
       }
@@ -602,11 +669,10 @@ Returns confirmed initial reviewers and their review details for a specific appl
 >
 > - `initialReviews` contains only reviewers confirmed by 承辦人員.
 > - `reviewDetails` is non-null only when `reviewStatus = '已完成'`. Return `null` for `reviewDetails` when status is `未完成`.
-> - `scores` array length must match the number of rubric items in the track's `evaluationRubrics` (from §6.1), ordered by rubric index.
+> - `scores` array length must match the number of rubric items in the track's `evaluationRubrics`, ordered by rubric index.
+> - `totalScore` must equal the sum of `scores`. Backend should compute and return this; do not rely on frontend summation.
 
-<!-- > - `totalScore` must equal the sum of `scores`. Backend should compute and return this; do not rely on frontend summation. -->
-
-**Errors:**
+**Error Type:**
 
 | Code | ErrorType               | Condition                                                    |
 | ---- | ----------------------- | ------------------------------------------------------------ |
@@ -617,7 +683,7 @@ Returns confirmed initial reviewers and their review details for a specific appl
 
 ---
 
-### 6.3 `POST /applications/{applicationId}/reviewer-recommendations` — Submit Reviewer Recommendations
+### 6.6 `POST /applications/{applicationId}/reviewer-recommendations` — Submit Reviewer Recommendations
 
 Creates a new recommendation record for the application. Each call appends to the recommendation history. The backend saves `createdDateTime` server-side; do not accept it from the client.
 
@@ -647,8 +713,6 @@ Creates a new recommendation record for the application. Each call appends to th
 - `reviewers` must be a non-empty array.
 - `priority` values must be unique within the request and form a contiguous sequence starting from 1.
 - Each reviewer must have at least one entry in `email`.
-  <!-- - If a reviewer in the new list was previously in an earlier record with `invitationStatus` of `邀請中` or `已邀請`, the backend should flag their status as `取消中` — their prior invitation is being superseded. -->
-  <!-- - If a reviewer previously confirmed (`invitationStatus = '已同意'`) is **omitted** from the new list, the backend must reject the request with `409 CONFLICT`. A confirmed reviewer cannot be removed from the active cycle. -->
 
 **Response (`201 Created`):**
 
@@ -659,12 +723,24 @@ Creates a new recommendation record for the application. Each call appends to th
   "timestamp": "string (ISO 8601)",
   "apiVersion": "v1",
   "data": {
-    "recommendationRecordId": "string (UUID)",
-    "createdDateTime": "string (ISO 8601)"
+    "applicationId": "string (UUID)",
+    "createdDateTime": "string (ISO 8601)",
+    "reviewers": [
+      {
+        "priority": "integer (starts from 1; lower = higher priority)",
+        "name": "string",
+        "email": ["string"],
+        "remarks": "string | null (DC's reason for recommending this reviewer)"
+      }
+    ]
   },
   "error": null
 }
 ```
+
+> **Implementation Note (State Management Best Practice):**
+>
+> To ensure optimal frontend performance and adhere to modern API standards, the backend returns the **fully constructed recommendation record**. The frontend must **not** make a subsequent `GET` request to refresh the list after a successful `POST`. Instead, the frontend should inject this returned object directly into its local state manager to instantly update the UI.
 
 **Errors:**
 
@@ -676,11 +752,9 @@ Creates a new recommendation record for the application. Each call appends to th
 | 404  | `NOT_FOUND`             | Application not found                                                                                       |
 | 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                                                                  |
 
-<!-- | 409  | `CONFLICT`              | The new list omits a reviewer who has already confirmed (`invitationStatus = '已同意'`)                     | -->
-
 ---
 
-### 6.4 `PUT /applications/{applicationId}/final-review` — Save or Submit Final Review
+### 6.7 `PUT /applications/{applicationId}/final-review` — Save or Submit Final Review
 
 Saves a draft or finalizes the DC's final review for an application. Idempotent — repeated calls with identical data produce the same result.
 
@@ -702,7 +776,7 @@ Saves a draft or finalizes the DC's final review for an application. Idempotent 
 
 **Validation Rules:**
 
-- **`score` and `remarks` must be non-null** even for drafts (`isFinalized = false`).
+- **`score` and `remarks` must be non-null**, when `isFinalized = true`. However, for drafts (`isFinalized = false`), either one of them can be null, but not both.
 - When `isFinalized = false` (draft): No restriction on initial review completion.
 - When `isFinalized = true`:
   - At least `minNumInitialReviewers` confirmed reviewers must have `reviewStatus = '已完成'`. Backend must enforce this; return `409 CONFLICT` if not.
@@ -717,11 +791,19 @@ Saves a draft or finalizes the DC's final review for an application. Idempotent 
   "timestamp": "string (ISO 8601)",
   "apiVersion": "v1",
   "data": {
+    "applicationId": "string (UUID)",
+    "score": "integer | null",
+    "remarks": "string | null",
+    "isFinalized": "boolean",
     "updatedDateTime": "string (ISO 8601)"
   },
   "error": null
 }
 ```
+
+> **Implementation Note (State Management Best Practice):**
+>
+> Similar to reviewer recommendations, the backend returns the **fully updated final review object**. The frontend should directly update its local state using this response rather than making a redundant `GET` request.
 
 **Errors:**
 
@@ -734,38 +816,6 @@ Saves a draft or finalizes the DC's final review for an application. Idempotent 
 | 409  | `CONFLICT`              | `isFinalized = true` but the minimum required initial reviews are not complete; or application is already `已完成` |
 | 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                                                                         |
 
-<!-- ---
-
-(zhiqi: 2026/03/10) The following is kept for spec formatting reference, only. Invitation status tracking is invalid now.
-
-## 7. Reference: Reviewer Invitation Statuses
-
-These statuses are set by backend/admin. The DC sees them read-only via `recommendationRecords`.
-
-| Status   | Meaning                                                                                                    |
-| -------- | ---------------------------------------------------------------------------------------------------------- |
-| `邀請中` | DC submitted the recommendation; admin is processing it.                                                   |
-| `已邀請` | Admin has sent the invitation to the reviewer.                                                             |
-| `已同意` | Reviewer accepted. They will review the application.                                                       |
-| `已拒絕` | Reviewer declined. `invitationStatusRemarks` contains their reason.                                        |
-| `已回避` | Reviewer recused themselves. `invitationStatusRemarks` contains their reason.                              |
-| `取消中` | The DC submitted a new recommendation list that omits this reviewer; admin is processing the cancellation. |
-| `已取消` | Cancellation confirmed. Reviewer will not review this application.                                         | -->
-
-<!-- ---
-
-(zhiqi: 2026/03/10) Frontend will take care.
-
-## 7. Reference: Initial Review Statuses
-
-These statuses are computed by the backend based on reviewer activity.
-
-| Status   | Meaning                                                                                                                                |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `未開始` | Reviewer confirmed (`已同意`) but has not yet started.                                                                                 |
-| `進行中` | Reviewer has saved at least one draft.                                                                                                 |
-| `已完成` | Reviewer submitted their review. Scores and remarks are visible to DC. Once submitted, this status is final and cannot be rolled back. | -->
-
 ---
 
 ## 7. Reference: 預計入選名額 Calculation
@@ -774,26 +824,14 @@ The `預計入選名額` for each discipline is a "soft" recommended quota — a
 
 **Formula:**
 
+```markdown
+整體入選期望值 (`overallExpectedRatio`) = fixedQuota / totalApplicationsCount (總申請人數)
+
+預計入選名額 (per discipline, `projectedQuotaRaw`) = 該學門申請數 (discipline's `totalApplicationsCount`) × `overallExpectedRatio`
+
+最終預計入選人數 (`projectedQuotaRounded`) = round(`projectedQuotaRaw`)
 ```
-overallSelectionRatio = fixedQuota / totalApplicationsInTrack
 
-預計入選名額 (per discipline) = disciplineApplicantCount × overallSelectionRatio
-```
+**Fairness rule:** If a discipline's raw quota (`projectedQuotaRaw`) is `< 1.0`, the DC may still recommend 1 highly-rated applicant for that discipline to ensure representational fairness.
 
-**Fairness rule:** If a discipline's `預計入選名額 < 1.0`, the DC may still recommend 1 highly-rated applicant for that discipline to ensure representational fairness.
-
-Both `overallSelectionRatio` and per-discipline `預計入選名額` are computed and returned by the backend. Frontend must not recompute them.
-
-> Note: Alternatively, frontend can handle the calculation, while not requiring `預計入選名額` from backend.
-
-<!-- ---
-
-## 9. Open Decisions
-
-| #   | Question                                                                               | Recommendation                                                                                                                                                                                                                                                                         |
-| --- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Which CAPTCHA provider?                                                                | Google reCAPTCHA v3 (seamless, invisible). Must be confirmed before implementation; frontend and backend must use the same provider.                                                                                                                                                   |
-| 2   | Does the DC need to view or update their own profile?                                  | If yes, add `GET /users/me` and `PATCH /users/me`. Not in current scope.                                                                                                                                                                                                               |
-| 3   | Is there a smart recommendation endpoint needed?                                       | Requirements §2.3 defines this as `{}` (TBD). Clarify scope and add here when ready.                                                                                                                                                                                                   |
-| 4   | `youngScholar` advisors                                                                | Requirements data model does not include `advisors` for `youngScholar`. This spec omits them. Confirm.                                                                                                                                                                                 |
-| 5   | Can a DC explicitly cancel a single recommendation without resubmitting the full list? | Currently, cancellation is implicit — any reviewer absent from the new list who was previously `邀請中` or `已邀請` is marked `取消中`. If explicit per-reviewer cancellation is needed, a `DELETE /applications/{id}/reviewer-recommendations/{reviewerId}` endpoint should be added. | -->
+Both `overallExpectedRatio` and per-discipline projected quotas are computed and returned by the backend. Frontend must not recompute them.

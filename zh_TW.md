@@ -171,7 +171,7 @@ Content-Type: application/json
 | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `待推薦` | 待推薦          | DC 尚未提交任何推薦委員，**或** 尚未有任何推薦紀錄。                                                                |
 | `待初審` | 待初審          | 至少存在一筆推薦紀錄。可能尚無任何已確認的委員。或如果有的話，並非所有已確認的委員都已完成審查。DC 無已儲存的草稿。 |
-| `待複審` | 待複審          | 至少有 `minNumInitialReviewers` 個已確認的委員提交了他們的審查結果。DC 尚未儲存任何草稿。                           |
+| `待複審` | 待複審          | 至少有 `minIniitalReviewerCount` 個已確認的委員提交了他們的審查結果。DC 尚未儲存任何草稿。                          |
 | `待送出` | 待送出          | DC 已儲存決審草稿 (`isFinalized = false`)。初審可能完成也可能未完全完成；直到完成前將被阻擋送出 (finalize)。        |
 | `已完成` | 已完成          | DC 已提交並完成決審 (`isFinalized = true`)。                                                                        |
 
@@ -187,14 +187,14 @@ Content-Type: application/json
 
 待初審
   ─► 待複審
-        時機：至少 `minNumInitialReviewers` 名已確認的委員的 reviewStatus = "已完成"
+        時機：至少 `minIniitalReviewerCount` 名已確認的委員的 reviewStatus = "已完成"
               且 DC 無已儲存草稿
   ─► 待送出
         時機：DC 在最低要求的初審數量完成之前先儲存了一份草稿。
 
 待送出
   ─► 待初審  (退回/回歸)
-        時機：已完成的初審被撤銷/作廢，且已完成的數量降至 `minNumInitialReviewers` 以下。
+        時機：已完成的初審被撤銷/作廢，且已完成的數量降至 `minIniitalReviewerCount` 以下。
   ─► 待送出
         時機：DC 儲存草稿 (PUT /final-review, isFinalized = false)
   ─► 已完成
@@ -203,14 +203,14 @@ Content-Type: application/json
 待送出
   ─► 已完成
         時機：DC 提交 (PUT /final-review, isFinalized = true)
-              並且至少 `minNumInitialReviewers` 名已確認的委員的 reviewStatus = "已完成"
+              並且至少 `minIniitalReviewerCount` 名已確認的委員的 reviewStatus = "已完成"
               如果不符合此條件，後端必須以 409 CONFLICT 拒絕。
 ```
 
 ### 5.3 業務規則
 
 1. DC **可以儲存草稿** (`isFinalized = false`) 在任何時候，即使在所有初審完之前。
-2. DC **無法決定送出 (finalize)** (`isFinalized = true`) 除非至少 `minNumInitialReviewers` 名初審委員已完成。後端必須使用 `409 CONFLICT` 強制執行。
+2. DC **無法決定送出 (finalize)** (`isFinalized = true`) 除非至少 `minIniitalReviewerCount` 名初審委員已完成。後端必須使用 `409 CONFLICT` 強制執行。
 3. 一旦申請案達到 `已完成`，就不接受進一步的編輯。隨後的 `PUT /final-review` 呼叫必須被拒絕，回傳 `409 CONFLICT`。
 4. 如果一位已經完成審查 (`reviewStatus = "已完成"`) 的委員後來在管理層面被撤銷 (極端情況)，後端必須相應地重新評估申請案的狀態。
 
@@ -373,6 +373,7 @@ Content-Type: application/json
   "data": {
     "applicationId": "string (UUID)",
     "submittedDateTime": "string (ISO 8601)",
+    "minIniitalReviewerCount": "integer",
     "applicantNameZhTW": "string",
     "applicantNameEn": "string",
     "email": "string",
@@ -459,6 +460,7 @@ Content-Type: application/json
   "data": {
     "applicationId": "string (UUID)",
     "submittedDateTime": "string (ISO 8601)",
+    "minIniitalReviewerCount": "integer",
     "applicantNameZhTW": "string",
     "applicantNameEn": "string",
     "email": "string",
@@ -744,7 +746,7 @@ Content-Type: application/json
 - 當 `isFinalized = true` 時，**`score` 和 `remarks` 必須是非 null 的**。然而，對於草稿 (`isFinalized = false`)，兩者可以擇一為 null，但不可以兩者皆為 null。
 - 當 `isFinalized = false` (草稿) 時：對初審是否完成無限制。
 - 當 `isFinalized = true`：
-  - 至少有 `minNumInitialReviewers` 個已確認委員的 `reviewStatus = '已完成'`。後端必須強制執行此檢查；如果未滿足，則傳回 `409 CONFLICT`。
+  - 至少有 `minIniitalReviewerCount` 個已確認委員的 `reviewStatus = '已完成'`。後端必須強制執行此檢查；如果未滿足，則傳回 `409 CONFLICT`。
 - 一旦申請案的狀態達到 `已完成`（先前已決審），任何後續的 `PUT` 請求都必須被拒絕，並回傳 `409 CONFLICT`。
 
 **回應 (`200 OK`):**

@@ -206,7 +206,7 @@ The backend computes and owns each application's `status`. The DC cannot set it 
 | -------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `待推薦` | 待推薦         | DC has not yet submitted any reviewer recommendations, **or** there is not yet any recommendation record.                                                                                     |
 | `待初審` | 待初審         | At least one recommendation record is present. There can be no confirmed reviewers yet. Or, if there is any, not all confirmed reviewers have completed their reviews. DC has no saved draft. |
-| `待複審` | 待複審         | At least `minNumInitialReviewers` confirmed reviewers have submitted their reviews. DC has not yet saved any draft.                                                                           |
+| `待複審` | 待複審         | At least `minIniitalReviewerCount` confirmed reviewers have submitted their reviews. DC has not yet saved any draft.                                                                          |
 | `待送出` | 待送出         | DC has saved a draft final review (`isFinalized = false`). Initial reviews may or may not all be complete; finalization is blocked until they are.                                            |
 | `已完成` | 已完成         | DC has submitted and finalized the review (`isFinalized = true`).                                                                                                                             |
 
@@ -222,14 +222,14 @@ The backend computes and owns each application's `status`. The DC cannot set it 
 
 待初審
   ─► 待複審
-        When: At least `minNumInitialReviewers` confirmed reviewers' reviewStatus = "已完成"
+        When: At least `minIniitalReviewerCount` confirmed reviewers' reviewStatus = "已完成"
               AND DC has no saved draft
   ─► 待送出
         When: DC saves a draft before the minimum required initial reviews are complete
 
 待送出
   ─► 待初審  (regression)
-        When: A completed initial review is revoked/invalidated and completed count drops below `minNumInitialReviewers`
+        When: A completed initial review is revoked/invalidated and completed count drops below `minIniitalReviewerCount`
   ─► 待送出
         When: DC saves a draft (PUT /final-review, isFinalized = false)
   ─► 已完成
@@ -238,14 +238,14 @@ The backend computes and owns each application's `status`. The DC cannot set it 
 待送出
   ─► 已完成
         When: DC submits (PUT /final-review, isFinalized = true)
-              AND at least `minNumInitialReviewers` confirmed reviewers' reviewStatus = "已完成"
+              AND at least `minIniitalReviewerCount` confirmed reviewers' reviewStatus = "已完成"
               Backend must reject with 409 CONFLICT if this condition is not met.
 ```
 
 ### 5.3 Business Rules
 
 1. DC **may save a draft** (`isFinalized = false`) at any time, even before all initial reviews are complete.
-2. DC **cannot finalize** (`isFinalized = true`) unless at least `minNumInitialReviewers` reviewers have completed their initial reviews. Backend must enforce this with `409 CONFLICT`.
+2. DC **cannot finalize** (`isFinalized = true`) unless at least `minIniitalReviewerCount` reviewers have completed their initial reviews. Backend must enforce this with `409 CONFLICT`.
 3. Once an application reaches `已完成`, no further edits are accepted. Subsequent `PUT /final-review` calls must be rejected with `409 CONFLICT`.
 4. If a reviewer who has already completed their review (`reviewStatus = "已完成"`) is later revoked at the admin level (edge case), the backend must re-evaluate the application status accordingly.
 
@@ -408,6 +408,7 @@ For **`/phd-candidate`**:
   "data": {
     "applicationId": "string (UUID)",
     "submittedDateTime": "string (ISO 8601)",
+    "minIniitalReviewerCount": "integer",
     "applicantNameZhTW": "string",
     "applicantNameEn": "string",
     "email": "string",
@@ -494,6 +495,7 @@ For **`/young-scholar`**:
   "data": {
     "applicationId": "string (UUID)",
     "submittedDateTime": "string (ISO 8601)",
+    "minIniitalReviewerCount": "integer",
     "applicantNameZhTW": "string",
     "applicantNameEn": "string",
     "email": "string",
@@ -779,7 +781,7 @@ Saves a draft or finalizes the DC's final review for an application. Idempotent 
 - **`score` and `remarks` must be non-null**, when `isFinalized = true`. However, for drafts (`isFinalized = false`), either one of them can be null, but not both.
 - When `isFinalized = false` (draft): No restriction on initial review completion.
 - When `isFinalized = true`:
-  - At least `minNumInitialReviewers` confirmed reviewers must have `reviewStatus = '已完成'`. Backend must enforce this; return `409 CONFLICT` if not.
+  - At least `minIniitalReviewerCount` confirmed reviewers must have `reviewStatus = '已完成'`. Backend must enforce this; return `409 CONFLICT` if not.
 - Once an application is `已完成` (previously finalized), any subsequent `PUT` must be rejected with `409 CONFLICT`.
 
 **Response (`200 OK`):**

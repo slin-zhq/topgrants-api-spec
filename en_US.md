@@ -685,7 +685,7 @@ Returns confirmed initial reviewers and their review details for a specific appl
 
 ---
 
-### 6.6 `POST /applications/{applicationId}/reviewer-recommendations` — Submit Reviewer Recommendations
+### 6.6 `POST /applications/{applicationId}/recommendation-records` — Submit Reviewer Recommendations
 
 Creates a new recommendation record for the application. Each call appends to the recommendation history. The backend saves `createdDateTime` server-side; do not accept it from the client.
 
@@ -704,7 +704,9 @@ Creates a new recommendation record for the application. Each call appends to th
       "priority": "integer (starts from 1; lower = higher priority)",
       "name": "string",
       "email": ["string"],
-      "remarks": "string | null"
+      "remarks": "string | null",
+      "tempSave": "boolean" // If true, User is logged out due to session expiry, and we're saving so she can continue later. So, `createdDateTime` on the backend must be `null`.
+      // If another call is made while there's an existing temporarily saved record, delete the existing record and save the new incoming one.
     }
   ]
 }

@@ -15,7 +15,7 @@
 
 ## 1. 設計原則
 
-- 每個對 `/applications/{id}/reviewer-recommendations` 的 `POST` 請求都會 **附加** 一個新的推薦紀錄。它不會替換先前的紀錄。
+- 每個對 `/applications/{id}/recommendation-records` 的 `POST` 請求都會 **附加** 一個新的推薦紀錄。它不會替換先前的紀錄。
 - 後端計算並擁有每個申請案的 `status` (狀態)。DC 使用者無法直接設定它。
 - `POST` 建立新的子資源。`PUT` 替換現有資源 (冪等)。`DELETE` 刪除資源。
 
@@ -650,7 +650,7 @@ Content-Type: application/json
 
 ---
 
-### 6.6 `POST /applications/{applicationId}/reviewer-recommendations` — 提交推薦委員
+### 6.6 `POST /applications/{applicationId}/recommendation-records` — 提交推薦委員
 
 為該申請案創建新的推薦紀錄。每次呼叫都會在推薦歷史中新增一筆。後端在伺服器端儲存 `createdDateTime`；請勿接受來自客戶端的這個參數。
 
@@ -669,7 +669,9 @@ Content-Type: application/json
       "priority": "integer (從 1 開始；較小 = 較高優先順序)",
       "name": "string",
       "email": ["string"],
-      "remarks": "string | null"
+      "remarks": "string | null",
+      "tempSave": "boolean" // 若為 true，代表使用者因 session 過期而登出，我們正在儲存以便稍後繼續。因此，後端的 `createdDateTime` 必須為 `null`。
+      // 如果在已有暫存紀錄的情況下再次發送請求，請刪除現有紀錄並儲存新傳入的紀錄。
     }
   ]
 }

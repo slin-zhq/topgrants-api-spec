@@ -705,7 +705,7 @@ Creates a new recommendation record for the application. Each call appends to th
       "name": "string",
       "email": ["string"],
       "remarks": "string | null",
-      "tempSave": "boolean" // If true, User is logged out due to session expiry, and we're saving so she can continue later. So, `createdDateTime` on the backend must be `null`.
+      "isAutoSave": "boolean" // If true, User is logged out due to session expiry, and we're saving so she can continue later. So, `createdDateTime` on the backend must be `null`.
       // If another call is made while there's an existing temporarily saved record, delete the existing record and save the new incoming one.
     }
   ]

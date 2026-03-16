@@ -670,7 +670,7 @@ Content-Type: application/json
       "name": "string",
       "email": ["string"],
       "remarks": "string | null",
-      "tempSave": "boolean" // 若為 true，代表使用者因 session 過期而登出，我們正在儲存以便稍後繼續。因此，後端的 `createdDateTime` 必須為 `null`。
+      "isAutoSave": "boolean" // 若為 true，代表使用者因 session 過期而登出，我們正在儲存以便稍後繼續。因此，後端的 `createdDateTime` 必須為 `null`。
       // 如果在已有暫存紀錄的情況下再次發送請求，請刪除現有紀錄並儲存新傳入的紀錄。
     }
   ]

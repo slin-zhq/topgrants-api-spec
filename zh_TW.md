@@ -71,7 +71,7 @@
 | `CAPTCHA_ERROR`         | CAPTCHA 憑證遺失、無效、分數過低或過期                    |
 | `AUTHORIZATION_ERROR`   | 經驗證的使用者缺乏此資源的權限                            |
 | `NOT_FOUND`             | 請求的資源不存在                                          |
-| `CONFLICT`              | 請求與目前的資源狀態衝突 (例如：在所有初審完成前進行決審) |
+| `CONFLICT`              | 請求與目前的資源狀態衝突 (例如：在所有初審完成前進行複審) |
 | `QUERY_EXECUTION_ERROR` | 資料庫查詢失敗                                            |
 | `TIMEOUT_ERROR`         | 後端操作超時                                              |
 | `RATE_LIMIT_ERROR`      | 來自客戶端的請求過多                                      |
@@ -172,8 +172,8 @@ Content-Type: application/json
 | `待推薦` | 待推薦          | DC 尚未提交任何推薦委員，**或** 尚未有任何推薦紀錄。                                                                |
 | `待初審` | 待初審          | 至少存在一筆推薦紀錄。可能尚無任何已確認的委員。或如果有的話，並非所有已確認的委員都已完成審查。DC 無已儲存的草稿。 |
 | `待複審` | 待複審          | 至少有 `minIniitalReviewerCount` 個已確認的委員提交了他們的審查結果。DC 尚未儲存任何草稿。                          |
-| `待送出` | 待送出          | DC 已儲存決審草稿 (`isFinalized = false`)。初審可能完成也可能未完全完成；直到完成前將被阻擋送出 (finalize)。        |
-| `已完成` | 已完成          | DC 已提交並完成決審 (`isFinalized = true`)。                                                                        |
+| `待送出` | 待送出          | DC 已儲存複審草稿 (`isFinalized = false`)。初審可能完成也可能未完全完成；直到完成前將被阻擋送出 (finalize)。        |
+| `已完成` | 已完成          | DC 已提交並完成複審 (`isFinalized = true`)。                                                                        |
 
 ### 5.2 狀態轉換條件
 
@@ -437,14 +437,7 @@ Content-Type: application/json
           "thesisProgressInPercentages": "integer (0–100)"
         }
       }
-    ],
-    "finalReview": {
-      // 可為 null
-      "score": "integer | null",
-      "remarks": "string | null",
-      "isFinalized": "boolean",
-      "updatedDateTime": "string (ISO 8601) | null (如果尚未存檔則為 null)"
-    }
+    ]
   }
 }
 ```
@@ -519,13 +512,6 @@ Content-Type: application/json
           "fileUrl": "string"
         }
       ]
-    },
-    "finalReview": {
-      // 可為 null
-      "score": "integer | null",
-      "remarks": "string | null",
-      "isFinalized": "boolean",
-      "updatedDateTime": "string (ISO 8601) | null (如果尚未存檔則為 null)"
     }
   }
 }
@@ -648,9 +634,55 @@ Content-Type: application/json
 | 404  | `NOT_FOUND`             | 找不到該申請案                   |
 | 500  | `INTERNAL_SERVER_ERROR` | 預期外的後端失敗                 |
 
+### 6.6 `GET /applications/{applicationId}/final-review` — 複審詳情
+
+傳回 DC 對特定申請案的複審結果（已儲存草稿或已送出複審）。
+
+**路徑參數:**
+
+| 參數            | 類型        | 說明        |
+| --------------- | ----------- | ----------- |
+| `applicationId` | UUID string | 申請案的 ID |
+
+**請求主體:** 無。
+
+**回應 (`200 OK`):**
+
+```json
+{
+  "status": "success",
+  "code": 200,
+  "timestamp": "string (ISO 8601)",
+  "apiVersion": "v1",
+  "data": {
+    "applicationId": "string (UUID)",
+    "score": "integer | null",
+    "remarks": "string | null",
+    "isFinalized": "boolean",
+    "updatedDateTime": "string (ISO 8601) | null (如果尚未儲存任何複審結果則為 null)"
+  },
+  "error": null
+}
+```
+
+> **實作備註:**
+>
+> - `score` 和 `remarks` 若 DC 尚未儲存任何複審結果，則兩者皆可能為 null。
+> - `updatedDateTime` 若尚未儲存複審結果則為 null；代表最近一次儲存或送出複審的時間戳記。
+> - `isFinalized` 表示 DC 是否已送出（完成）複審。若複審結果尚不存在，傳回 `isFinalized = false`。
+
+**錯誤類型:**
+
+| 代碼 | ErrorType               | 條件                             |
+| ---- | ----------------------- | -------------------------------- |
+| 401  | `AUTHENTICATION_ERROR`  | 憑證無效或已過期                 |
+| 403  | `AUTHORIZATION_ERROR`   | 該申請案不隸屬所分配 DC 的學門下 |
+| 404  | `NOT_FOUND`             | 找不到該申請案                   |
+| 500  | `INTERNAL_SERVER_ERROR` | 預期外的後端失敗                 |
+
 ---
 
-### 6.6 `POST /applications/{applicationId}/recommendation-records` — 提交推薦委員
+### 6.7 `POST /applications/{applicationId}/recommendation-records` — 提交推薦委員
 
 為該申請案創建新的推薦紀錄。每次呼叫都會在推薦歷史中新增一筆。後端在伺服器端儲存 `createdDateTime`；請勿接受來自客戶端的這個參數。
 
@@ -723,9 +755,9 @@ Content-Type: application/json
 
 ---
 
-### 6.7 `PUT /applications/{applicationId}/final-review` — 儲存或送出決審
+### 6.8 `PUT /applications/{applicationId}/final-review` — 儲存或送出複審
 
-儲存草稿或為一個申請案將 DC 的決審標定為完成。冪等性實作 — 攜帶相同資料進行多次呼叫應產生相同的結果。
+儲存草稿或為一個申請案將 DC 的複審標定為完成。冪等性實作 — 攜帶相同資料進行多次呼叫應產生相同的結果。
 
 **路徑參數:**
 
@@ -749,7 +781,7 @@ Content-Type: application/json
 - 當 `isFinalized = false` (草稿) 時：對初審是否完成無限制。
 - 當 `isFinalized = true`：
   - 至少有 `minIniitalReviewerCount` 個已確認委員的 `reviewStatus = '已完成'`。後端必須強制執行此檢查；如果未滿足，則傳回 `409 CONFLICT`。
-- 一旦申請案的狀態達到 `已完成`（先前已決審），任何後續的 `PUT` 請求都必須被拒絕，並回傳 `409 CONFLICT`。
+- 一旦申請案的狀態達到 `已完成`（先前已複審），任何後續的 `PUT` 請求都必須被拒絕，並回傳 `409 CONFLICT`。
 
 **回應 (`200 OK`):**
 
@@ -772,7 +804,7 @@ Content-Type: application/json
 
 > **實作備註 (狀態管理最佳實務 - State Management Best Practice):**
 >
-> 與推薦委員的端點類似，後端將傳回**完整更新後的決審物件**。前端應直接使用此回傳資料更新其本地狀態，而不是發起多餘的 `GET` 請求。
+> 與推薦委員的端點類似，後端將傳回**完整更新後的複審物件**。前端應直接使用此回傳資料更新其本地狀態，而不是發起多餘的 `GET` 請求。
 
 **錯誤:**
 

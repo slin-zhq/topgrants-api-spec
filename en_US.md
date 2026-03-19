@@ -472,14 +472,7 @@ For **`/phd-candidate`**:
           "thesisProgressInPercentages": "integer (0–100)"
         }
       }
-    ],
-    "finalReview": {
-      // Can be null
-      "score": "integer | null",
-      "remarks": "string | null",
-      "isFinalized": "boolean",
-      "updatedDateTime": "string (ISO 8601) | null (null if no save has occurred)"
-    }
+    ]
   }
 }
 ```
@@ -554,13 +547,6 @@ For **`/young-scholar`**:
           "fileUrl": "string"
         }
       ]
-    },
-    "finalReview": {
-      // Can be null
-      "score": "integer | null",
-      "remarks": "string | null",
-      "isFinalized": "boolean",
-      "updatedDateTime": "string (ISO 8601) | null (null if no save has occurred)"
     }
   }
 }
@@ -685,7 +671,55 @@ Returns confirmed initial reviewers and their review details for a specific appl
 
 ---
 
-### 6.6 `POST /applications/{applicationId}/recommendation-records` — Submit Reviewer Recommendations
+### 6.6 `GET /applications/{applicationId}/final-review` — DC's Final Review Details
+
+Returns the DC's final review (saved draft or finalized) for a specific application.
+
+**Path Parameter:**
+
+| Parameter       | Type        | Description           |
+| --------------- | ----------- | --------------------- |
+| `applicationId` | UUID string | ID of the application |
+
+**Request Body:** None.
+
+**Response (`200 OK`):**
+
+```json
+{
+  "status": "success",
+  "code": 200,
+  "timestamp": "string (ISO 8601)",
+  "apiVersion": "v1",
+  "data": {
+    "applicationId": "string (UUID)",
+    "score": "integer | null",
+    "remarks": "string | null",
+    "isFinalized": "boolean",
+    "updatedDateTime": "string (ISO 8601) | null (null if no final review has been saved)"
+  },
+  "error": null
+}
+```
+
+> **Implementation Notes:**
+>
+> - `score` and `remarks` may both be null if the DC has not yet saved any final review.
+> - `updatedDateTime` is null if no final review has been saved; represents the timestamp of the most recent save/finalization.
+> - `isFinalized` indicates whether the DC has submitted (finalized) the review. If no review exists yet, return `isFinalized = false`.
+
+**Error Type:**
+
+| Code | ErrorType               | Condition                                                    |
+| ---- | ----------------------- | ------------------------------------------------------------ |
+| 401  | `AUTHENTICATION_ERROR`  | Invalid or expired token                                     |
+| 403  | `AUTHORIZATION_ERROR`   | Application does not belong to the DC's assigned disciplines |
+| 404  | `NOT_FOUND`             | Application not found                                        |
+| 500  | `INTERNAL_SERVER_ERROR` | Unexpected backend failure                                   |
+
+---
+
+### 6.7 `POST /applications/{applicationId}/recommendation-records` — Submit Viewer Recommendations
 
 Creates a new recommendation record for the application. Each call appends to the recommendation history. The backend saves `createdDateTime` server-side; do not accept it from the client.
 
@@ -758,7 +792,7 @@ Creates a new recommendation record for the application. Each call appends to th
 
 ---
 
-### 6.7 `PUT /applications/{applicationId}/final-review` — Save or Submit Final Review
+### 6.8 `PUT /applications/{applicationId}/final-review` — Save or Submit Final Review
 
 Saves a draft or finalizes the DC's final review for an application. Idempotent — repeated calls with identical data produce the same result.
 

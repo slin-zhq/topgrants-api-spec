@@ -375,32 +375,33 @@ Content-Type: application/json
     "submittedDateTime": "string (ISO 8601)",
     "minIniitalReviewerCount": "integer",
     "applicantNameZhTW": "string",
-    "applicantNameEn": "string",
+    "applicantNameOnPassport": "string",
     "email": "string",
-    "currentInstitutionAndDepartmentZhTw": "string",
-    "currentInstitutionAndDepartmentEn": "string",
-    "doctoralThesisTitleZhTw": "string",
-    "doctoralThesisTitleEn": "string",
+    "thesisTitleZhTw": "string",
+    "thesisTitleOriginalText": "string",
     "thesisAbstractZhTw": "string",
-    "thesisAbstractEn": "string",
-    "expectedImpact": "string",
+    "thesisAbstractOriginalText": "string",
     "applicantEduBackground": [
       {
-        "institution": "string",
-        "department": "string",
+        "institutionZhTW": "string",
+        "institutionOriginalText": "string",
+        "departmentZhTW": "string",
+        "departmentOriginalText": "string",
         "country": "string",
         "degree": "string",
         "graduationStatus": "string",
         "startYearAndMonth": "string (YYYY/MM)",
-        "endYearAndMonth": "string (YYYY/MM) | null (如果目前在學則為 null)"
+        "endYearAndMonth": "string (YYYY/MM) | null (null if currently enrolled)",
+        "isDualDegree": "boolean"
       }
     ],
     "attachments": {
       "researchProposal": { "fileName": "string", "fileUrl": "string" }, // 論文計畫書
-      "publications": {
-        "tableOfContents": { "fileName": "string", "fileUrl": "string" }, // 著作目錄
+      "publicationsAndAcademicAchievements": {
+        // 著作與學術成果
+        "c302TableOfContents": { "fileName": "string", "fileUrl": "string" }, // C302表
         "details": [
-          // 著作與學術成果
+          // 可另上傳至多5個
           {
             "displayName": "string",
             "fileName": "string",
@@ -414,7 +415,7 @@ Content-Type: application/json
         "fileUrl": "string"
       },
       "supplementaries": [
-        // 補充附件
+        // 補充證明文件
         {
           "displayName": "string",
           "fileName": "string",
@@ -453,17 +454,14 @@ Content-Type: application/json
   "data": {
     "applicationId": "string (UUID)",
     "submittedDateTime": "string (ISO 8601)",
-    "minIniitalReviewerCount": "integer",
+    "minInitialReviewerCount": "integer",
     "applicantNameZhTW": "string",
-    "applicantNameEn": "string",
+    "applicantNameOnPassport": "string",
     "email": "string",
-    "currentInstitutionAndDepartmentZhTw": "string",
-    "currentInstitutionAndDepartmentEn": "string",
-    "monographTitleZhTw": "string", // 專書
-    "monographTitle": "string",
-    "monographAbstractZhTw": "string",
-    "monographAbstractEn": "string",
-    "expectedImpact": "string",
+    "thesisTitleZhTw": "string",
+    "thesisTitleOriginalText": "string",
+    "thesisAbstractZhTw": "string",
+    "thesisAbstractOriginalText": "string",
     "applicantEduBackground": [
       // 結構與 `phd-candidate` 相同
     ],
@@ -478,16 +476,10 @@ Content-Type: application/json
     ],
     "attachments": {
       "researchProposal": { "fileName": "string", "fileUrl": "string" }, // 計畫書
-      "publications": {
-        "tableOfContents": { "fileName": "string", "fileUrl": "string" }, // 著作目錄
-        "details": [
-          // 著作與學術成果
-          {
-            "displayName": "string",
-            "fileName": "string",
-            "fileUrl": "string"
-          }
-        ]
+      "publicationTableOfContents": {
+        // 著作目錄
+        "fileName": "string",
+        "fileUrl": "string"
       },
       "doctoralDegreeCertificate": {
         // 博士學位證書
@@ -503,15 +495,7 @@ Content-Type: application/json
         // 任職機構主管推薦函
         "fileName": "string",
         "fileUrl": "string"
-      },
-      "supplementaries": [
-        // 補充附件
-        {
-          "displayName": "string",
-          "fileName": "string",
-          "fileUrl": "string"
-        }
-      ]
+      }
     }
   }
 }

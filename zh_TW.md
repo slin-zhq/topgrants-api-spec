@@ -377,6 +377,13 @@ Content-Type: application/json
     "applicantNameZhTW": "string",
     "applicantNameOnPassport": "string",
     "email": "string",
+    // ====
+    // 必須取自 `applicantEduBackground` 中最新的一筆紀錄（或是沒有 `endYearAndMonth` 的紀錄）。
+    "currentInstitutionZhTw": "string",
+    "currentInstitutionOriginalText": "string",
+    "currentDepartmentZhTW": "string",
+    "currentDepartmentOriginalText": "string",
+    // ====
     "thesisTitleZhTw": "string",
     "thesisTitleOriginalText": "string",
     "thesisAbstractZhTw": "string",
@@ -458,6 +465,13 @@ Content-Type: application/json
     "applicantNameZhTW": "string",
     "applicantNameOnPassport": "string",
     "email": "string",
+    // ====
+    // 必須取自 `applicantWorkExperience` 中最新的一筆紀錄（或是沒有 `endYearAndMonth` 的紀錄）。
+    "currentInstitutionZhTw": "string",
+    "currentInstitutionOriginalText": "string",
+    "currentDepartmentZhTW": "string",
+    "currentDepartmentOriginalText": "string",
+    // ====
     "thesisTitleZhTw": "string",
     "thesisTitleOriginalText": "string",
     "thesisAbstractZhTw": "string",

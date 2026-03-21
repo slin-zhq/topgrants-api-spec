@@ -412,10 +412,13 @@ For **`/phd-candidate`**:
     "applicantNameZhTW": "string",
     "applicantNameOnPassport": "string",
     "email": "string",
-    // "currentInstitutionZhTw": "string",
-    // "currentInstitutionOriginalText": "string",
-    // "currentDepartmentZhTW": "string",
-    // "currentDepartmentOriginalText": "string",
+    // ====
+    // Must come from the latest record (or record with no `endYearAndMonth`) from `applicantEduBackground`.
+    "currentInstitutionZhTw": "string",
+    "currentInstitutionOriginalText": "string",
+    "currentDepartmentZhTW": "string",
+    "currentDepartmentOriginalText": "string",
+    // ====
     "thesisTitleZhTw": "string",
     "thesisTitleOriginalText": "string",
     "thesisAbstractZhTw": "string",
@@ -497,6 +500,13 @@ For **`/young-scholar`**:
     "applicantNameZhTW": "string",
     "applicantNameOnPassport": "string",
     "email": "string",
+    // ====
+    // Must come from the latest record (or record with no `endYearAndMonth`) from `applicantWorkExperience`.
+    "currentInstitutionZhTw": "string",
+    "currentInstitutionOriginalText": "string",
+    "currentDepartmentZhTW": "string",
+    "currentDepartmentOriginalText": "string",
+    // ====
     "thesisTitleZhTw": "string",
     "thesisTitleOriginalText": "string",
     "thesisAbstractZhTw": "string",

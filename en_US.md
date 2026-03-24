@@ -423,6 +423,7 @@ For **`/phd-candidate`**:
     "thesisTitleOriginalText": "string",
     "thesisAbstractZhTw": "string",
     "thesisAbstractOriginalText": "string",
+    "thesisProgressInPercentages": "integer (0–100)",
     "applicantEduBackground": [
       {
         "institutionZhTW": "string",
@@ -438,26 +439,32 @@ For **`/phd-candidate`**:
       }
     ],
     "attachments": {
-      "researchProposal": { "fileName": "string", "fileUrl": "string" }, // 論文計畫書
-      "publicationsAndAcademicAchievements": {
-        // 著作與學術成果
-        "c302TableOfContents": { "fileName": "string", "fileUrl": "string" }, // C302表
-        "details": [
-          // 可另上傳至多5個
-          {
-            "displayName": "string",
-            "fileName": "string",
-            "fileUrl": "string"
-          }
-        ]
-      },
       "phdCandidacyCertificate": {
         // 博士候選人資格證明
         "fileName": "string",
         "fileUrl": "string"
       },
+      "voluntaryDisclosureForm": {
+        // 補助自主揭露表
+        "fileName": "string",
+        "fileUrl": "string"
+      },
+      "researchProposal": { "fileName": "string", "fileUrl": "string" }, // 論文計畫書
+      "publicationTableOfContents": {
+        // 著作目錄
+        "fileName": "string",
+        "fileUrl": "string"
+      },
+      "representativePublications": [
+        // 代表性學術著作(至多5個)
+        {
+          "displayName": "string",
+          "fileName": "string",
+          "fileUrl": "string"
+        }
+      ],
       "supplementaries": [
-        // 補充證明文件
+        // 其他／補充文件; *可上傳至多5個
         {
           "displayName": "string",
           "fileName": "string",
@@ -465,7 +472,7 @@ For **`/phd-candidate`**:
         }
       ]
     },
-    "advisors": [
+    "recommenders": [
       {
         "name": "string",
         "jobTitle": "string",
@@ -474,10 +481,10 @@ For **`/phd-candidate`**:
         "eduBackground": "string",
         "workExperience": "string",
         "evaluationOfApplicant": {
-          "researchPotential": "string",
-          "thesisContent": "string",
-          "thesisAdvisingMethod": "string",
-          "thesisProgressInPercentages": "integer (0–100)"
+          "researchPotential": "string", // 對學生研究潛力之評估
+          "thesisContent": "string", // 對學生所提博士論文計畫內容之評述
+          "thesisAdvisingMethod": "string", // 博士論文指導方式
+          "thesisProgressInPercentages": "integer (0–100)" // 博士論文進度
         }
       }
     ]
@@ -501,7 +508,7 @@ For **`/young-scholar`**:
     "applicantNameOnPassport": "string",
     "email": "string",
     // ====
-    // Must come from the latest record (or record with no `endYearAndMonth`) from `applicantWorkExperience`.
+    // 必須取自 `applicantWorkExperience` 中最新的一筆紀錄（或是沒有 `endYearAndMonth` 的紀錄）。
     "currentInstitutionZhTw": "string",
     "currentInstitutionOriginalText": "string",
     "currentDepartmentZhTW": "string",
@@ -512,7 +519,7 @@ For **`/young-scholar`**:
     "thesisAbstractZhTw": "string",
     "thesisAbstractOriginalText": "string",
     "applicantEduBackground": [
-      // Same as `phd-candidate`
+      // 結構與 `phd-candidate` 相同
     ],
     "applicantWorkExperience": [
       {
@@ -524,9 +531,8 @@ For **`/young-scholar`**:
       }
     ],
     "attachments": {
-      "researchProposal": { "fileName": "string", "fileUrl": "string" }, // 計畫書
-      "publicationTableOfContents": {
-        // 著作目錄
+      "employmentProof": {
+        // 在職資格證明
         "fileName": "string",
         "fileUrl": "string"
       },
@@ -535,16 +541,38 @@ For **`/young-scholar`**:
         "fileName": "string",
         "fileUrl": "string"
       },
-      "employmentProof": {
-        // 在職證明/合約影本
+      "voluntaryDisclosureForm": {
+        // 補助自主揭露表
         "fileName": "string",
         "fileUrl": "string"
       },
-      "supervisorRecommendationLetter": {
-        // 任職機構主管推薦函
+      "researchProposal": { "fileName": "string", "fileUrl": "string" }, // 計畫書
+      "publicationTableOfContents": {
+        // 著作目錄
         "fileName": "string",
         "fileUrl": "string"
-      }
+      },
+      "representativePublications": [
+        // 代表性學術著作(至多5個)
+        {
+          "displayName": "string",
+          "fileName": "string",
+          "fileUrl": "string"
+        }
+      ],
+      "supplementaries": [
+        // 其他／補充文件; *可上傳至多5個
+        {
+          "displayName": "string",
+          "fileName": "string",
+          "fileUrl": "string"
+        }
+      ]
+    },
+    "supervisorRecommendationLetter": {
+      // Recommendation Letter
+      "fileName": "string",
+      "fileUrl": "string"
     }
   }
 }

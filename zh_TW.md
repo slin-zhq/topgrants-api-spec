@@ -330,7 +330,8 @@ Content-Type: application/json
               "mostRecentlyRecommendedInitialReviewerCount": "integer",
               "confirmedInitialReviewerCount": "integer",
               "completedInitialReviewCount": "integer"
-            }
+            },
+            "finalReviewScore": "integer | null" // 僅當狀態為「已完成」或「待送出」時提供
           }
         ]
       }

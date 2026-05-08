@@ -365,7 +365,8 @@ Both `phd-candidate` and `young-scholar` share the same response format:
               "mostRecentlyRecommendedInitialReviewerCount": "integer",
               "confirmedInitialReviewerCount": "integer",
               "completedInitialReviewCount": "integer"
-            }
+            },
+            "finalReviewScore": "integer | null" // Only available when status is 已完成 or 待送出
           }
         ]
       }
